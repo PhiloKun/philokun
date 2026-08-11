@@ -28,6 +28,7 @@
 | `philokun todo add <内容>` | 追加一条待办 |
 | `philokun todo list` | 列出全部待办（含完成状态） |
 | `philokun todo done <ID>` | 标记某条待办为已完成 |
+| `philokun todo undo <ID>` | 将已完成待办退回为未完成 |
 | `philokun todo rm <ID>` | 删除一条待办 |
 | `philokun note add <内容>` | 记一条闪念笔记 |
 | `philokun note list` | 列出全部笔记 |
@@ -187,7 +188,9 @@ philokun version 0.1.0
 }
 ```
 
-- 文件不存在时自动创建，读取不到时返回空列表而非报错。
+- 文件不存在时自动创建；读取不到时返回空列表而非报错。
+- 若 `todo.json` 是旧的字符串数组格式，会自动迁移为含 ID / 完成状态的对象格式。
+- 若文件严重损坏无法解析，会备份为 `todo.json.bak.<时间戳>` 后重置，避免命令崩溃。
 - 该路径在用户主目录下，不污染项目目录，命令重装数据不丢。
 - `vault.json` 中只保存派生密钥所用的 salt 与密文，主密码**永不落盘**。
 

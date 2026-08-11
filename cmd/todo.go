@@ -75,6 +75,24 @@ var todoDoneCmd = &cobra.Command{
 	},
 }
 
+// todoUndoCmd 把指定 ID 的已完成待办退回为未完成（撤销完成）。
+var todoUndoCmd = &cobra.Command{
+	Use:   "undo <ID>",
+	Short: "将已完成待办退回为未完成",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("ID 必须是数字: %w", err)
+		}
+		if err := store.UndoTodo(id); err != nil {
+			return err
+		}
+		fmt.Printf("已将 ID %d 退回为未完成。\n", id)
+		return nil
+	},
+}
+
 // todoRmCmd 删除指定 ID 的待办。
 var todoRmCmd = &cobra.Command{
 	Use:   "rm <ID>",
@@ -98,6 +116,7 @@ func init() {
 	todoCmd.AddCommand(todoAddCmd)
 	todoCmd.AddCommand(todoListCmd)
 	todoCmd.AddCommand(todoDoneCmd)
+	todoCmd.AddCommand(todoUndoCmd)
 	todoCmd.AddCommand(todoRmCmd)
 	rootCmd.AddCommand(todoCmd)
 }

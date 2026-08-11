@@ -32,6 +32,15 @@ philokun todo done 1
 # 已将 ID 1 标记为完成。
 ```
 
+### `philokun todo undo <ID>`
+
+将已完成（ID 存在但在 `done: true` 状态）的待办退回为未完成，撤销其完成标记。
+
+```bash
+philokun todo undo 1
+# 已将 ID 1 退回为未完成。
+```
+
 ### `philokun todo rm <ID>`
 
 删除指定 ID 的待办。
@@ -58,13 +67,15 @@ philokun todo rm 2
 ```
 
 - `seq` 为自增 ID 计数器，保证每条待办 ID 唯一且稳定。
-- 文件不存在时自动创建；读取失败（如文件损坏）会返回错误。
+- 文件不存在时自动创建。
+- 若 `todos` 是旧的字符串数组格式（如 `["测试"]`），会自动迁移为新的对象格式。
+- 若文件严重损坏无法解析，会将其备份为 `todo.json.bak.<时间戳>` 后重置为空列表，避免命令直接崩溃。
 
 ## 实现说明
 
 | 层 | 文件 | 职责 |
 |----|------|------|
 | 命令 | `cmd/todo.go` | `add` / `list` / `done` / `rm` 子命令与参数校验 |
-| 存储 | `internal/store/todo.go` | `Todo` 结构体与 `AddTodo` / `ListTodos` / `DoneTodo` / `RmTodo` |
+| 存储 | `internal/store/todo.go` | `Todo` 结构体与 `AddTodo` / `ListTodos` / `DoneTodo` / `UndoTodo` / `RmTodo` |
 
-`done` / `rm` 通过 ID 定位（`findTodo`），ID 不存在时返回明确错误。
+`done` / `undo` / `rm` 通过 ID 定位（`findTodo`），ID 不存在时返回明确错误。

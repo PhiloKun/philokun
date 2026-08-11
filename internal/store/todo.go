@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
 // Todo 是单条待办的结构体，带唯一 ID、内容与完成状态。
@@ -38,6 +40,8 @@ func todoPath() (string, error) {
 }
 
 // loadTodos 读取并解析 JSON 文件；文件不存在时返回空列表而不是报错。
+// 如果文件是旧的字符串数组格式，会自动迁移为新的 Todo 对象格式；
+// 如果是无法识别的损坏格式，则备份原文件后重置为空列表，避免程序崩溃。
 func loadTodos() (todoFile, error) {
 	p, err := todoPath()
 	if err != nil {
@@ -50,11 +54,32 @@ func loadTodos() (todoFile, error) {
 		}
 		return todoFile{}, err
 	}
+
 	var tf todoFile
-	if err := json.Unmarshal(data, &tf); err != nil {
-		return todoFile{}, err
+	if err := json.Unmarshal(data, &tf); err == nil {
+		return tf, nil
 	}
-	return tf, nil
+
+	// 兼容旧格式/损坏文件：todos 是字符串数组（如 ["测试"]）。
+	// 注意：前面失败的 json.Unmarshal 可能已向 tf.Todos 写入零值，
+	// 所以这里使用全新的变量，避免残留脏数据。
+	var legacy struct {
+		Seq   int      `json:"seq"`
+		Todos []string `json:"todos"`
+	}
+	if err := json.Unmarshal(data, &legacy); err == nil && len(legacy.Todos) > 0 {
+		var migrated todoFile
+		migrated.Seq = max(legacy.Seq, len(legacy.Todos))
+		for i, text := range legacy.Todos {
+			migrated.Todos = append(migrated.Todos, Todo{ID: i + 1, Text: text})
+		}
+		return migrated, nil
+	}
+
+	// 无法识别的格式：备份后重置，避免后续操作继续失败。
+	backup := p + ".bak." + strconv.FormatInt(time.Now().Unix(), 10)
+	_ = os.Rename(p, backup)
+	return todoFile{}, nil
 }
 
 // saveTodos 把内存结构写回 JSON 文件（带缩进，方便人读）。
@@ -111,6 +136,23 @@ func DoneTodo(id int) error {
 		return fmt.Errorf("未找到 ID 为 %d 的待办", id)
 	}
 	tf.Todos[idx].Done = true
+	return saveTodos(tf)
+}
+
+// UndoTodo 把指定 ID 的已完成待办退回为未完成（撤销完成）。
+func UndoTodo(id int) error {
+	tf, err := loadTodos()
+	if err != nil {
+		return err
+	}
+	idx, ok := findTodo(tf.Todos, id)
+	if !ok {
+		return fmt.Errorf("未找到 ID 为 %d 的待办", id)
+	}
+	if !tf.Todos[idx].Done {
+		return fmt.Errorf("ID 为 %d 的待办当前就是未完成状态，无需撤销", id)
+	}
+	tf.Todos[idx].Done = false
 	return saveTodos(tf)
 }
 
