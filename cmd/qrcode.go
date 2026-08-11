@@ -70,7 +70,7 @@ func qrcodeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	qrcodeCmd.Flags().StringVarP(&qrcodePort, "port", "p", "8080", "Web 服务监听端口")
+	qrcodeCmd.Flags().StringVarP(&qrcodePort, "port", "p", "9000", "Web 服务监听端口")
 	qrcodeCmd.Flags().StringVar(&qrcodeHost, "host", "127.0.0.1", "Web 服务监听地址")
 	rootCmd.AddCommand(qrcodeCmd)
 }

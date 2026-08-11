@@ -32,16 +32,27 @@
 
 ---
 
+## 📚 功能文档
+
+各功能的详细使用说明与实现/测试说明，见 [`docs/`](./docs) 目录：
+
+- [待办命令 `todo`](./docs/todo.md)
+- [版本命令 `version`](./docs/version.md)
+- [二维码生成器 `qrcode`](./docs/qrcode.md)
+- [测试说明](./docs/testing.md)
+
+---
+
 ## 🔳 二维码生成器
 
 `philokun qrcode` 会启动一个本地 Web 服务，打开网页即可把文本、网址、数字等任意内容实时转换成二维码图片，并支持下载（PNG）与复制到剪贴板。界面自适应桌面与移动端。
 
 ```bash
-# 默认监听 http://127.0.0.1:8080
+# 默认监听 http://127.0.0.1:9000
 ./philokun qrcode
 
 # 自定义监听地址与端口
-./philokun qrcode --host 0.0.0.0 --port 9000
+./philokun qrcode --host 0.0.0.0 --port 8080
 ```
 
 在浏览器打开后：
@@ -151,6 +162,19 @@ philokun version 0.1.0
 go mod tidy     # 整理依赖
 go build ./...  # 编译全部包
 go test ./...   # 运行测试
+```
+
+**测试**
+
+项目对每个功能都编写了单元测试（详见 [docs/testing.md](./docs/testing.md)）：
+
+- `internal/store/todo_test.go`、`internal/store/qrcode_test.go`：存储层与二维码生成。
+- `cmd/version_test.go`、`cmd/todo_test.go`、`cmd/qrcode_test.go`：命令层与 HTTP 接口。
+
+测试通过 `t.Setenv("HOME", tmp)` 把数据重定向到临时目录，不会污染你真实的 `~/.philokun`。
+
+```bash
+go test ./... -v   # 查看每个用例的详细输出
 ```
 
 **新增一个子命令**（以 `note` 为例）
