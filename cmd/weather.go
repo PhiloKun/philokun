@@ -339,14 +339,8 @@ func printCityWeather(city string) error {
 
 	if len(wd.Hourly) > 0 {
 		fmt.Printf("\n📈 小时预报 (Hourly Forecast, 未来 24h, 单位 °C):\n")
-		fmt.Printf("温度趋势: %s\n", asciiSpark(wd.Hourly))
-		fmt.Print("关键时段: ")
-		for i, h := range wd.Hourly {
-			if i%4 == 0 {
-				fmt.Printf("[%s %s %.0f°C] ", h.Time, flag(h.Code), h.Temp)
-			}
-		}
-		fmt.Println()
+		fmt.Printf("温度趋势折线图 (左: 温度刻度°C / 下: 整点时刻 / ^: 当日极值):\n")
+		fmt.Print(asciiLineChart(wd.Hourly))
 	}
 
 	if len(wd.Daily) > 0 {
@@ -360,38 +354,130 @@ func printCityWeather(city string) error {
 	return nil
 }
 
-// asciiSpark 用纯 ASCII 字符画出温度趋势曲线，避免终端字体缺失导致的乱码。
-// 使用 8 级斜坡字符 ',.`-~:;=!*#$@' 表示从最低到最高温度。
-func asciiSpark(hours []hourBlock) string {
+// asciiLineChart 用纯 ASCII 绘制带坐标轴的温度折线图，直观展示 24 小时趋势。
+// 左侧为温度刻度（°C），横坐标标注整点时刻，底部列出最低/最高温度与时间。
+func asciiLineChart(hours []hourBlock) string {
 	if len(hours) == 0 {
 		return ""
 	}
 	const width = 40
+	const height = 7 // 图表纵向行数（不含坐标轴标签）
 	n := len(hours)
 	step := max((n-1)/(width-1), 1)
+
 	min, max := hours[0].Temp, hours[0].Temp
-	for _, h := range hours {
+	minIdx, maxIdx := 0, 0
+	for i, h := range hours {
 		if h.Temp < min {
-			min = h.Temp
+			min, minIdx = h.Temp, i
 		}
 		if h.Temp > max {
-			max = h.Temp
+			max, maxIdx = h.Temp, i
 		}
 	}
 	span := max - min
 	if span < 0.001 {
 		span = 1
 	}
-	const ramp = ",.-~:;=!*#$@"
-	var b strings.Builder
+
+	// 构造绘图网格：每个字符位置记录采样的小时下标（-1 表示无数据点）。
+	colIdx := make([]int, width)
 	for i := range width {
 		idx := i * step
 		if idx >= n {
 			idx = n - 1
 		}
-		pos := int((hours[idx].Temp - min) / span * float64(len(ramp)-1))
-		b.WriteByte(ramp[pos])
+		colIdx[i] = idx
 	}
+
+	// 用 '#' 画折线，'.' 连结，空格留白。
+	grid := make([][]byte, height)
+	for r := range grid {
+		grid[r] = make([]byte, width)
+		for c := range grid[r] {
+			grid[r][c] = ' '
+		}
+	}
+	prevR := -1
+	for c, idx := range colIdx {
+		level := (hours[idx].Temp - min) / span // 0~1
+		r := height - 1 - int(level*float64(height-1))
+		if r < 0 {
+			r = 0
+		}
+		if r > height-1 {
+			r = height - 1
+		}
+		grid[r][c] = '#'
+		if prevR >= 0 { // 用 '.' 在相邻点之间补线，便于看清趋势
+			lo, hi := prevR, r
+			if lo > hi {
+				lo, hi = hi, lo
+			}
+			for rr := lo; rr <= hi; rr++ {
+				if grid[rr][c-1] == ' ' {
+					grid[rr][c-1] = '.'
+				}
+			}
+		}
+		prevR = r
+	}
+
+	// 横向刻度标记：在最低/最高点下方加 '^'。
+	minCol := width - 1
+	maxCol := 0
+	for c, idx := range colIdx {
+		if idx == minIdx {
+			minCol = c
+		}
+		if idx == maxIdx {
+			maxCol = c
+		}
+	}
+
+	var b strings.Builder
+	labelW := 6 // y 轴标签宽度，如 " 20.0°"
+	for r := 0; r < height; r++ {
+		// 该行对应的温度值
+		frac := float64(height-1-r) / float64(height-1)
+		val := min + frac*span
+		fmt.Fprintf(&b, "%5.1f° ", val)
+		for c := 0; c < width; c++ {
+			b.WriteByte(grid[r][c])
+		}
+		b.WriteByte('\n')
+	}
+	// x 轴基准线
+	b.WriteString(strings.Repeat(" ", labelW))
+	b.WriteString(strings.Repeat("-", width))
+	b.WriteByte('\n')
+	// 整点时刻标注：每 6 列标一次 HH:MM，避免拥挤重叠。
+	b.WriteString(strings.Repeat(" ", labelW))
+	xlabels := make([]string, width)
+	for c := 0; c < width; c++ {
+		if c%6 == 0 {
+			xlabels[c] = hours[colIdx[c]].Time[11:16] // 形如 15:00
+		} else {
+			xlabels[c] = "  "
+		}
+	}
+	b.WriteString(strings.Join(xlabels, ""))
+	b.WriteByte('\n')
+	// 最高/最低标注
+	b.WriteString(strings.Repeat(" ", labelW))
+	for c := 0; c < width; c++ {
+		switch c {
+		case minCol:
+			b.WriteByte('^')
+		case maxCol:
+			b.WriteByte('^')
+		default:
+			b.WriteByte(' ')
+		}
+	}
+	b.WriteString("  ^ = 极值\n")
+	fmt.Fprintf(&b, "最低 (Min): %.1f°C @ %s   最高 (Max): %.1f°C @ %s\n",
+		min, hours[minIdx].Time[11:16], max, hours[maxIdx].Time[11:16])
 	return b.String()
 }
 
@@ -443,7 +529,7 @@ func serveWeatherWeb(cities []string, port string) error {
 		"aqiLevel":   aqiLevel,
 		"bgClass":    bgClass,
 		"mod":        func(a, b int) int { return a % b },
-		"spark":      func(w weatherData) string { return asciiSpark(w.Hourly) },
+		"spark":      func(w weatherData) string { return asciiLineChart(w.Hourly) },
 		"tempAt":     func(w weatherData, i int) float64 { return w.Hourly[i].Temp },
 		"hourAt":     func(w weatherData, i int) string { return w.Hourly[i].Time },
 		"hourCodeAt": func(w weatherData, i int) int { return w.Hourly[i].Code },
