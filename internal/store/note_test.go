@@ -85,6 +85,58 @@ func TestNoteCRUDAndUndo(t *testing.T) {
 	}
 }
 
+// 删除后新增笔记应从 1 开始回收编号，undo 时若冲突则自动换号。
+func TestNoteIDRecycling(t *testing.T) {
+	setupTempHome(t)
+
+	AddNote("first")  // 1
+	AddNote("second") // 2
+	AddNote("third")  // 3
+
+	DeleteNotes([]int{1, 2})
+
+	// 删除 1、2 后，新增笔记应占用最小编号 1
+	if err := AddNote("after-delete"); err != nil {
+		t.Fatalf("AddNote: %v", err)
+	}
+	notes, _ := ListNotes()
+	if len(notes) != 2 {
+		t.Fatalf("期望 2 条，实际 %d", len(notes))
+	}
+	if notes[0].ID != 1 || notes[0].Text != "after-delete" {
+		t.Fatalf("新笔记应分配编号 1 且排在首位，实际 %+v", notes)
+	}
+
+	// undo 恢复 1、2；原 #1 与新笔记 #1 冲突，应被重新分配，最终无重复 ID。
+	n, err := UndoDelete()
+	if err != nil {
+		t.Fatalf("UndoDelete: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("期望恢复 2 条，实际 %d", n)
+	}
+	notes, _ = ListNotes()
+	if len(notes) != 4 {
+		t.Fatalf("undo 后期望 4 条，实际 %d", len(notes))
+	}
+	idSet := make(map[int]bool)
+	for _, n := range notes {
+		if idSet[n.ID] {
+			t.Fatalf("存在重复 ID: %d", n.ID)
+		}
+		idSet[n.ID] = true
+	}
+	expected := map[int]bool{1: true, 2: true, 3: true, 4: true}
+	if len(idSet) != len(expected) {
+		t.Fatalf("ID 集合不正确: %v", idSet)
+	}
+	for id := range expected {
+		if !idSet[id] {
+			t.Fatalf("缺少期望 ID %d，实际 %v", id, idSet)
+		}
+	}
+}
+
 func TestNoteDeletedNotListed(t *testing.T) {
 	setupTempHome(t)
 	AddNote("x")

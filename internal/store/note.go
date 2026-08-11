@@ -2,13 +2,14 @@ package store
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
 // noteFile 是笔记 JSON 文件的内存结构。
 type noteFile struct {
-	Seq         int    `json:"seq"`                   // 自增 ID 计数器
+	Seq         int    `json:"seq"`                   // 已废弃：保留以保证旧数据兼容，新增笔记不再使用
 	Notes       []Note `json:"notes"`                 // 所有笔记（含已软删）
 	LastDeleted []int  `json:"last_deleted,omitempty"` // 最近一次删除批次的 ID，供 undo 恢复
 }
@@ -38,22 +39,47 @@ func saveNotes(nf *noteFile) error {
 	return saveJSON(notesStoreFile, nf)
 }
 
-// AddNote 追加一条笔记并保存，自动记录时间与自增 ID。
+// AddNote 追加一条笔记并保存，自动记录时间并分配最小可用 ID。
+// 删除笔记后腾出的编号会被回收，保证用户看到的编号从 1 开始连续。
 func AddNote(text string) error {
 	nf, err := loadNotes()
 	if err != nil {
 		return err
 	}
-	nf.Seq++
 	nf.Notes = append(nf.Notes, Note{
-		ID:   nf.Seq,
+		ID:   nextNoteID(nf.Notes),
 		Text: text,
 		At:   time.Now().Format(time.RFC3339),
 	})
 	return saveNotes(nf)
 }
 
-// ListNotes 返回全部未删除的笔记（按添加顺序）。
+// nextNoteID 返回当前未删除笔记中尚未使用的最小正整数 ID。
+func nextNoteID(notes []Note) int {
+	used := make(map[int]bool)
+	for _, n := range notes {
+		if !n.Deleted {
+			used[n.ID] = true
+		}
+	}
+	id := 1
+	for used[id] {
+		id++
+	}
+	return id
+}
+
+// isActiveID 判断当前是否存在未删除且使用指定 ID 的笔记。
+func isActiveID(notes []Note, id int) bool {
+	for _, n := range notes {
+		if n.ID == id && !n.Deleted {
+			return true
+		}
+	}
+	return false
+}
+
+// ListNotes 返回全部未删除的笔记（按 ID 升序排列）。
 func ListNotes() ([]Note, error) {
 	nf, err := loadNotes()
 	if err != nil {
@@ -65,6 +91,7 @@ func ListNotes() ([]Note, error) {
 			out = append(out, n)
 		}
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
 }
 
@@ -169,6 +196,7 @@ func UpdateNote(id int, text string) (*Note, error) {
 }
 
 // UndoDelete 恢复最近一次删除批次中的笔记，返回恢复数量。
+// 若被恢复笔记的原始 ID 已被新笔记占用，则自动为其分配新的最小可用 ID。
 func UndoDelete() (int, error) {
 	nf, err := loadNotes()
 	if err != nil {
@@ -177,16 +205,18 @@ func UndoDelete() (int, error) {
 	if len(nf.LastDeleted) == 0 {
 		return 0, errNotFound("没有可撤销的删除操作")
 	}
-	restoreSet := make(map[int]bool, len(nf.LastDeleted))
-	for _, id := range nf.LastDeleted {
-		restoreSet[id] = true
-	}
 	count := 0
-	for i := range nf.Notes {
-		if restoreSet[nf.Notes[i].ID] && nf.Notes[i].Deleted {
-			nf.Notes[i].Deleted = false
-			nf.Notes[i].DeletedAt = ""
-			count++
+	for _, id := range nf.LastDeleted {
+		for i := range nf.Notes {
+			if nf.Notes[i].ID == id && nf.Notes[i].Deleted {
+				if isActiveID(nf.Notes, id) {
+					nf.Notes[i].ID = nextNoteID(nf.Notes)
+				}
+				nf.Notes[i].Deleted = false
+				nf.Notes[i].DeletedAt = ""
+				count++
+				break
+			}
 		}
 	}
 	nf.LastDeleted = nil
