@@ -2,7 +2,7 @@
 
 > 一个用 Go 编写的**个人效率命令行工具**：用一行命令管理你的待办，数据全部存在本地，不依赖任何云服务。
 
-[![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)](https://go.dev/)
 [![Cobra](https://img.shields.io/badge/Cli-Cobra-326CE5)](https://github.com/spf13/cobra)
 [![GitHub](https://img.shields.io/badge/GitHub-PhiloKun/philokun-blue?logo=github)](https://github.com/PhiloKun/philokun)
 [![Gitee](https://img.shields.io/badge/Gitee-PhiloKun/philokun-red?logo=git)](https://gitee.com/PhiloKun/philokun)
@@ -17,7 +17,7 @@
 - **基于 Cobra**：命令结构清晰，新增子命令只需新增一个文件并在 `init()` 里注册。
 - **符合 Unix 习惯**：错误打到 stderr 并以非零退出码结束，方便在脚本里组合使用。
 
-> 当前为 `0.1.0` 早期版本，已实现待办增、查与版本打印，后续可扩展笔记、日志、完成状态等。
+> 当前为 `0.1.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、二维码生成等功能。
 
 ---
 
@@ -133,7 +133,7 @@ go build -o philokun .
 ./philokun todo list
 ```
 
-### 方式二：go install（需 Go 1.22+）
+### 方式二：go install（需 Go 1.26+）
 
 ```bash
 go install philokun@latest      # 二进制会装到 $GOPATH/bin，记得加入 PATH
