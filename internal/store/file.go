@@ -47,7 +47,9 @@ func loadJSON(filename string, v any) (notFound bool, err error) {
 	return false, nil
 }
 
-// saveJSON 把 v 以缩进 JSON 形式写入指定数据文件。
+// saveJSON 把 v 以缩进 JSON 形式原子写入指定数据文件。
+// 实现：先写临时文件，再 os.Rename 覆盖目标。Rename 在同级目录下是原子操作，
+// 保证“要么写入成功、要么旧文件不变”，避免写一半崩溃导致数据损坏（事务性保证）。
 func saveJSON(filename string, v any) error {
 	dir, err := dirPath()
 	if err != nil {
@@ -58,5 +60,25 @@ func saveJSON(filename string, v any) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0o644)
+	tmp, err := os.CreateTemp(dir, ".tmp-"+filename+"-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	// 任何失败路径都清理临时文件，避免遗留垃圾文件。
+	defer func() {
+		_ = os.Remove(tmpName)
+	}()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, p)
 }

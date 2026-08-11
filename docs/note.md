@@ -95,6 +95,42 @@ philokun note clear --yes
 
 > 清空为空时直接提示无需操作；清空后列表显示为空状态，可用 `note undo` 一键恢复。
 
+### `philokun note purge <id>...`
+
+**物理删除**指定的笔记（单条或批量，空格分隔多个 ID）：直接从存储中**真正移除记录**，不可撤销。操作前有醒目的【物理删除】确认提示 `[y/N]`，加 `-y/--yes` 跳过确认。别名：`erase` / `wipe` / `destroy`。
+
+```bash
+philokun note purge 2
+# 确认【物理删除】笔记 #2 "旧内容"？（此操作不可撤销） [y/N]: y
+# 已物理删除 1 条笔记（不可撤销）。
+
+philokun note purge 1 3 --yes
+# 已物理删除 2 条笔记（不可撤销）。
+```
+
+> 与 `rm`（软删除，可 `undo`）不同，`purge` 会永久丢弃数据，请谨慎使用。
+
+### `philokun note purge-all`
+
+**物理清空**全部笔记：真正移除所有记录，不可撤销。操作前有【物理清空】确认提示 `[y/N]`，加 `-y/--yes` 跳过。别名：`erase-all` / `wipe-all`。
+
+```bash
+philokun note purge-all
+# 确认【物理清空】全部 3 条笔记？此操作不可撤销！ [y/N]: y
+# 已物理清空 3 条笔记（不可撤销）。
+```
+
+> 与 `clear`（软删除，可 `undo`）不同，`purge-all` 不可恢复；删除后文件中的 `notes` 直接清空。
+
+## 软删除 vs 物理删除
+
+| 命令 | 行为 | 可撤销 | 存储表现 |
+|------|------|--------|----------|
+| `note rm` / `note clear` | 软删除（置 `deleted` 标记） | 是（`note undo`） | 记录保留但被过滤 |
+| `note purge` / `note purge-all` | 物理删除（真正移除） | 否 | 记录从文件移除 |
+
+数据通过 `~/.philokun/notes.json` 持久化；所有写入均采用**临时文件 + 原子 rename**，保证写操作要么完整生效、要么原文件不变（等价事务性，避免半写损坏）。
+
 ## 数据存储
 
 ```
@@ -126,7 +162,7 @@ philokun note clear --yes
 | 层 | 文件 | 职责 |
 |----|------|------|
 | 命令 | `cmd/note.go` | `add` / `list` / `search` / `edit` / `rm` / `undo` 子命令 |
-| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes` / `GetNote` / `UpdateNote` / `DeleteNote` / `DeleteNotes` / `ClearNotes` / `UndoDelete` |
+| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes` / `GetNote` / `UpdateNote` / `DeleteNote` / `DeleteNotes` / `ClearNotes` / `PurgeNote` / `PurgeNotes` / `PurgeAllNotes` / `UndoDelete` |
 
 - 删除采用**软删除**：仅置 `deleted=true`，`ListNotes`/`SearchNotes`/`GetNote` 自动过滤，避免误删丢失。
 - `undo` 通过 `last_deleted` 记录最近删除批次，整批恢复。

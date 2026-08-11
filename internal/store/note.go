@@ -125,7 +125,7 @@ func GetNote(id int) (*Note, error) {
 	return nil, errNotFound(fmt.Sprintf("笔记 #%d 不存在", id))
 }
 
-// DeleteNote 软删除单条笔记，并记录到最近删除批次。
+// DeleteNote 软删除单条笔记，并记录到最近删除批次（可用于 undo）。
 func DeleteNote(id int) (*Note, error) {
 	nf, err := loadNotes()
 	if err != nil {
@@ -174,6 +174,86 @@ func DeleteNotes(ids []int) ([]Note, error) {
 		return nil, err
 	}
 	return deleted, nil
+}
+
+// PurgeNote 物理删除单条笔记：直接从存储中移除该记录（不可撤销）。
+func PurgeNote(id int) (*Note, error) {
+	nf, err := loadNotes()
+	if err != nil {
+		return nil, err
+	}
+	for i := range nf.Notes {
+		if nf.Notes[i].ID == id && !nf.Notes[i].Deleted {
+			n := nf.Notes[i]
+			// 真正从切片中移除该元素，等价于数据库 DELETE（而非仅置标记）。
+			nf.Notes = append(nf.Notes[:i], nf.Notes[i+1:]...)
+			if err := saveNotes(nf); err != nil {
+				return nil, err
+			}
+			return &n, nil
+		}
+	}
+	return nil, errNotFound(fmt.Sprintf("笔记 #%d 不存在", id))
+}
+
+// PurgeNotes 物理删除多条笔记（事务性：任一 ID 不存在则整体失败，不持久化部分删除）。
+// 返回被删除的笔记列表。
+func PurgeNotes(ids []int) ([]Note, error) {
+	nf, err := loadNotes()
+	if err != nil {
+		return nil, err
+	}
+	// 先收集待删除元素的索引，避免在遍历中修改切片导致漏删/越界。
+	idxSet := make(map[int]bool, len(ids))
+	deleted := make([]Note, 0, len(ids))
+	for _, id := range ids {
+		found := false
+		for i := range nf.Notes {
+			if nf.Notes[i].ID == id && !nf.Notes[i].Deleted {
+				idxSet[i] = true
+				deleted = append(deleted, nf.Notes[i])
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, errNotFound(fmt.Sprintf("笔记 #%d 不存在", id))
+		}
+	}
+	// 从后往前移除，保证索引有效。
+	keep := make([]Note, 0, len(nf.Notes)-len(idxSet))
+	for i, n := range nf.Notes {
+		if !idxSet[i] {
+			keep = append(keep, n)
+		}
+	}
+	nf.Notes = keep
+	if err := saveNotes(nf); err != nil {
+		return nil, err
+	}
+	return deleted, nil
+}
+
+// PurgeAllNotes 物理删除全部笔记（清空文件中的 notes，仅保留结构），返回被移除条数。
+// 该操作不可撤销；采用临时文件 + rename 保证原子性（事务性）。
+func PurgeAllNotes() (int, error) {
+	nf, err := loadNotes()
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, n := range nf.Notes {
+		if !n.Deleted {
+			removed++
+		}
+	}
+	nf.Notes = nil
+	nf.Seq = 0
+	nf.LastDeleted = nil
+	if err := saveNotes(nf); err != nil {
+		return 0, err
+	}
+	return removed, nil
 }
 
 // UpdateNote 修改一条未删除笔记的文本，保留创建时间 At。

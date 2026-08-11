@@ -181,6 +181,75 @@ func TestNoteIDRecycling(t *testing.T) {
 	}
 }
 
+// 物理删除应从存储中真正移除记录，且不可被 undo 恢复。
+func TestNotePurge(t *testing.T) {
+	setupTempHome(t)
+
+	AddNote("a") // 1
+	AddNote("b") // 2
+	AddNote("c") // 3
+
+	// 物理删除 #2
+	n, err := PurgeNote(2)
+	if err != nil {
+		t.Fatalf("PurgeNote: %v", err)
+	}
+	if n.Text != "b" {
+		t.Fatalf("物理删除返回内容错误: %q", n.Text)
+	}
+	notes, _ := ListNotes()
+	if len(notes) != 2 {
+		t.Fatalf("期望 2 条，实际 %d", len(notes))
+	}
+	for _, x := range notes {
+		if x.ID == 2 {
+			t.Fatal("物理删除后 #2 不应再出现")
+		}
+	}
+
+	// 物理删除不存在的 ID 应报错
+	if _, err := PurgeNote(99); err == nil {
+		t.Fatal("物理删除不存在的 ID 应返回错误")
+	}
+
+	// 批量物理删除 1 与 3
+	if _, err := PurgeNotes([]int{1, 3}); err != nil {
+		t.Fatalf("PurgeNotes: %v", err)
+	}
+	notes, _ = ListNotes()
+	if len(notes) != 0 {
+		t.Fatalf("批量物理删除后期望 0 条，实际 %d", len(notes))
+	}
+
+	// 物理删除不可被 undo 恢复（last_deleted 为空）
+	if _, err := UndoDelete(); err == nil {
+		t.Fatal("物理删除后 undo 应返回错误（无软删记录）")
+	}
+}
+
+// 物理清空全部后文件应为空，且不可撤销。
+func TestNotePurgeAll(t *testing.T) {
+	setupTempHome(t)
+	AddNote("x")
+	AddNote("y")
+	AddNote("z")
+
+	removed, err := PurgeAllNotes()
+	if err != nil {
+		t.Fatalf("PurgeAllNotes: %v", err)
+	}
+	if removed != 3 {
+		t.Fatalf("期望移除 3 条，实际 %d", removed)
+	}
+	notes, _ := ListNotes()
+	if len(notes) != 0 {
+		t.Fatalf("物理清空后期望 0 条，实际 %d", len(notes))
+	}
+	if _, err := UndoDelete(); err == nil {
+		t.Fatal("物理清空后 undo 应返回错误")
+	}
+}
+
 func TestNoteDeletedNotListed(t *testing.T) {
 	setupTempHome(t)
 	AddNote("x")

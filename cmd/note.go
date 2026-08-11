@@ -222,6 +222,95 @@ var noteClearCmd = &cobra.Command{
 	},
 }
 
+// notePurgeCmd 物理删除笔记（单条或批量），真正从存储中移除，不可撤销。
+// 带确认提示，--yes 跳过确认。别名：erase / wipe / destroy。
+var notePurgeCmd = &cobra.Command{
+	Use:     "purge <id>...",
+	Aliases: []string{"erase", "wipe", "destroy"},
+	Short:   "物理删除笔记（真正移除，不可撤销）",
+	Args:    cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ids := make([]int, 0, len(args))
+		for _, a := range args {
+			id, err := strconv.Atoi(strings.TrimSpace(a))
+			if err != nil {
+				return fmt.Errorf("无效的笔记 ID: %q", a)
+			}
+			ids = append(ids, id)
+		}
+		notes, err := store.ListNotes()
+		if err != nil {
+			return err
+		}
+		byID := make(map[int]store.Note, len(notes))
+		for _, n := range notes {
+			byID[n.ID] = n
+		}
+		var missing []int
+		for _, id := range ids {
+			if _, ok := byID[id]; !ok {
+				missing = append(missing, id)
+			}
+		}
+		if len(missing) > 0 {
+			return fmt.Errorf("以下笔记 ID 不存在: %v", missing)
+		}
+		skip, _ := cmd.Flags().GetBool("yes")
+		if !skip {
+			var prompt string
+			if len(ids) == 1 {
+				n := byID[ids[0]]
+				prompt = fmt.Sprintf("确认【物理删除】笔记 #%d %q？（此操作不可撤销）", ids[0], n.Text)
+			} else {
+				prompt = fmt.Sprintf("确认【物理删除】这 %d 条笔记？（此操作不可撤销）", len(ids))
+			}
+			if !confirmPrompt(prompt) {
+				fmt.Println("已取消物理删除。")
+				return nil
+			}
+		}
+		deleted, err := store.PurgeNotes(ids)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("已物理删除 %d 条笔记（不可撤销）。\n", len(deleted))
+		fmt.Println("更新后的笔记列表：")
+		return printNoteList()
+	},
+}
+
+// notePurgeAllCmd 物理清空全部笔记，真正移除所有记录，不可撤销。带确认提示。
+var notePurgeAllCmd = &cobra.Command{
+	Use:     "purge-all",
+	Aliases: []string{"erase-all", "wipe-all"},
+	Short:   "物理清空全部笔记（真正移除，不可撤销）",
+	Args:    cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		notes, err := store.ListNotes()
+		if err != nil {
+			return err
+		}
+		if len(notes) == 0 {
+			fmt.Println("当前没有笔记，无需清空。")
+			return nil
+		}
+		skip, _ := cmd.Flags().GetBool("yes")
+		if !skip {
+			if !confirmPrompt(fmt.Sprintf("确认【物理清空】全部 %d 条笔记？此操作不可撤销！", len(notes))) {
+				fmt.Println("已取消物理清空。")
+				return nil
+			}
+		}
+		n, err := store.PurgeAllNotes()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("已物理清空 %d 条笔记（不可撤销）。\n", n)
+		fmt.Println("更新后的笔记列表：")
+		return printNoteList()
+	},
+}
+
 // printNoteList 打印当前全部未删除笔记，空时给出友好提示。
 func printNoteList() error {
 	notes, err := store.ListNotes()
@@ -277,11 +366,15 @@ func init() {
 	noteCmd.AddCommand(noteRmCmd)
 	noteCmd.AddCommand(noteUndoCmd)
 	noteCmd.AddCommand(noteClearCmd)
+	noteCmd.AddCommand(notePurgeCmd)
+	noteCmd.AddCommand(notePurgeAllCmd)
 
 	noteEditCmd.Flags().StringP("message", "m", "", "直接指定新内容（非交互模式）")
 	noteEditCmd.Flags().BoolP("yes", "y", false, "跳过保存确认直接保存")
 	noteRmCmd.Flags().BoolP("yes", "y", false, "跳过删除确认")
 	noteClearCmd.Flags().BoolP("yes", "y", false, "跳过清空确认")
+	notePurgeCmd.Flags().BoolP("yes", "y", false, "跳过物理删除确认")
+	notePurgeAllCmd.Flags().BoolP("yes", "y", false, "跳过物理清空确认")
 
 	rootCmd.AddCommand(noteCmd)
 }
