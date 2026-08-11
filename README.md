@@ -45,7 +45,7 @@
 | `philokun pass rm <名称> [-f]` | 删除保险箱中的记录（-f 跳过确认） |
 | `philokun pass list` | 列出保险箱全部记录（含 ID） |
 | `philokun weather <城市>` | 查询城市当天天气 |
-| `philokun pomodoro <分钟数>` | 启动番茄钟倒计时 |
+| `philokun pomodoro <分钟数>` | 启动番茄钟倒计时（别名 `pomo`） |
 | `philokun url add <别名> <链接>` | 添加一条别名链接 |
 | `philokun url list` | 列出全部链接（含 ID） |
 | `philokun url open <别名>` | 在浏览器打开别名对应的链接 |
