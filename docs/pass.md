@@ -1,0 +1,66 @@
+# `pass` 本地密码工具
+
+提供两个能力：**生成高强度随机口令** 与 **加密保存账号口令到本地保险箱**。所有数据纯本地、零云服务。
+
+## 子命令
+
+### `philokun pass gen -l <长度>`
+
+用 `crypto/rand` 生成密码学安全的随机口令（默认 16 位），字符集已剔除易混淆字符（0/O、1/l/I）。
+
+```bash
+philokun pass gen -l 20
+# Kf3$mP9xQw2!bB7nM4vR
+```
+
+### `philokun pass set <名称>`
+
+把一条口令加密存入 `~/.philokun/vault.json`。可通过 `-v` 直接传值，否则在终端安全输入（不回显）。
+
+```bash
+philokun pass set email
+# 请输入要保存的口令: ********
+# 请输入保险箱主密码（用于加密，不会存储）: ********
+# 已加密保存 "email"。
+```
+
+### `philokun pass get <名称>`
+
+用主密码解密取出口令明文。
+
+```bash
+philokun pass get email
+# 请输入保险箱主密码: ********
+# my-secret-token
+```
+
+## 加密方案
+
+- **密钥派生**：主密码 + 随机 `salt`，经 `golang.org/x/crypto/scrypt`（N=2^15, r=8, p=1）派生出 32 字节 AES-256 密钥。
+- **对称加密**：`crypto/aes` + `cipher.NewGCM`（AES-GCM），提供机密性与完整性校验。
+- **落盘内容**：仅保存 `salt`、密文与随机 `nonce`。**主密码永不写入磁盘**，因此即使 `vault.json` 泄露，没有主密码也无法解密。
+- 每个 secret 使用独立随机 `nonce`，避免重放风险。
+
+## 数据存储
+
+```
+~/.philokun/vault.json
+```
+
+```json
+{
+  "salt": "Base64...",
+  "secrets": {
+    "email": { "ciphertext": "Base64...", "nonce": "Base64..." }
+  }
+}
+```
+
+## 实现说明
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| 命令 | `cmd/pass.go` | `gen` / `set` / `get` 子命令，密码用 `golang.org/x/term` 隐藏回显 |
+| 存储 | `internal/store/pass.go` | `SetSecret` / `GetSecret` / `ListSecretNames`（scrypt + AES-GCM） |
+
+> 主密码一旦忘记无法找回，请务必牢记。

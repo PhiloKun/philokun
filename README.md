@@ -26,7 +26,20 @@
 | 命令 | 作用 |
 |------|------|
 | `philokun todo add <内容>` | 追加一条待办 |
-| `philokun todo list` | 列出全部待办 |
+| `philokun todo list` | 列出全部待办（含完成状态） |
+| `philokun todo done <ID>` | 标记某条待办为已完成 |
+| `philokun todo rm <ID>` | 删除一条待办 |
+| `philokun note add <内容>` | 记一条闪念笔记 |
+| `philokun note list` | 列出全部笔记 |
+| `philokun note search <关键词>` | 按关键词搜索笔记 |
+| `philokun pass gen -l <长度>` | 生成高强度随机口令 |
+| `philokun pass set <名称>` | 加密保存一条口令到本地保险箱 |
+| `philokun pass get <名称>` | 从保险箱解密取出口令 |
+| `philokun weather <城市>` | 查询城市当天天气 |
+| `philokun pomodoro <分钟数>` | 启动番茄钟倒计时 |
+| `philokun url add <别名> <链接>` | 添加一条别名链接 |
+| `philokun url list` | 列出全部链接 |
+| `philokun url open <别名>` | 在浏览器打开别名对应的链接 |
 | `philokun version` | 打印当前版本号 |
 | `philokun qrcode` | 启动本地网页版二维码生成器 |
 
@@ -37,9 +50,13 @@
 各功能的详细使用说明与实现/测试说明，见 [`docs/`](./docs) 目录：
 
 - [待办命令 `todo`](./docs/todo.md)
+- [笔记命令 `note`](./docs/note.md)
+- [密码工具 `pass`](./docs/pass.md)
+- [天气查询 `weather`](./docs/weather.md)
+- [番茄钟 `pomodoro`](./docs/pomodoro.md)
+- [链接管理 `url`](./docs/url.md)
 - [版本命令 `version`](./docs/version.md)
 - [二维码生成器 `qrcode`](./docs/qrcode.md)
-- [测试说明](./docs/testing.md)
 
 ---
 
@@ -71,16 +88,26 @@
 ```
 philokun/
 ├── main.go                 # 程序入口，调用 cmd.Execute()
-├── go.mod / go.sum         # Go 模块与依赖（cobra 等）
+├── go.mod / go.sum         # Go 模块与依赖（cobra / x-crypto 等）
 ├── cmd/                    # 命令定义层（Cobra 命令）
 │   ├── root.go             # 根命令 philokun
-│   ├── todo.go             # todo 分组命令 + add / list 子命令
+│   ├── todo.go             # todo 分组命令 + add / list / done / rm
+│   ├── note.go             # note 分组命令 + add / list / search
+│   ├── pass.go             # pass 分组命令 + gen / set / get
+│   ├── weather.go          # weather 子命令（Open-Meteo 联网查询）
+│   ├── pomodoro.go         # pomodoro 子命令（番茄钟倒计时）
+│   ├── url.go              # url 分组命令 + add / list / open
 │   ├── version.go          # version 子命令
 │   ├── qrcode.go           # qrcode 子命令（本地 Web 服务 + 二维码 API）
 │   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
 └── internal/
     └── store/
-        └── todo.go         # 数据持久化层（读写本地 JSON）
+        ├── file.go         # 通用 JSON 读写辅助
+        ├── todo.go         # 待办持久化（含完成状态/删除）
+        ├── note.go         # 笔记持久化 + 全文检索
+        ├── url.go          # URL 书签持久化
+        ├── pass.go         # 加密保险箱（scrypt + AES-GCM）
+        └── qrcode.go       # 二维码 PNG 生成
 ```
 
 设计上把 **“命令怎么跑”**（cmd）与 **“数据怎么存”**（internal/store）分离：
@@ -132,25 +159,30 @@ philokun version 0.1.0
 
 ## 🗄️ 数据存储
 
-待办保存在用户主目录下的 JSON 文件：
+所有数据以 JSON 形式保存在用户主目录下的 `~/.philokun/`，不依赖任何云服务：
 
-```
-~/.philokun/todo.json
-```
+| 文件 | 用途 |
+|------|------|
+| `todo.json` | 待办（含 ID / 完成状态） |
+| `notes.json` | 闪念笔记 |
+| `urls.json` | URL 书签 |
+| `vault.json` | 加密口令保险箱（scrypt + AES-GCM） |
 
-结构示例：
+`todo.json` 结构示例：
 
 ```json
 {
+  "seq": 2,
   "todos": [
-    "完成 Git 教程仓库",
-    "给 philokun 加完成状态"
+    { "id": 1, "text": "完成 Git 教程仓库", "done": true },
+    { "id": 2, "text": "给 philokun 加完成状态", "done": false }
   ]
 }
 ```
 
 - 文件不存在时自动创建，读取不到时返回空列表而非报错。
 - 该路径在用户主目录下，不污染项目目录，命令重装数据不丢。
+- `vault.json` 中只保存派生密钥所用的 salt 与密文，主密码**永不落盘**。
 
 ---
 
@@ -166,16 +198,15 @@ go test ./...   # 运行测试
 
 **测试**
 
-项目对每个功能都编写了单元测试（详见 [docs/testing.md](./docs/testing.md)）：
-
-- `internal/store/todo_test.go`、`internal/store/qrcode_test.go`：存储层与二维码生成。
-- `cmd/version_test.go`、`cmd/todo_test.go`、`cmd/qrcode_test.go`：命令层与 HTTP 接口。
-
-测试通过 `t.Setenv("HOME", tmp)` 把数据重定向到临时目录，不会污染你真实的 `~/.philokun`。
+每个功能在开发时都通过编写单元测试验证（CRUD、加密往返、口令生成、命令注册等），
+测试在验证通过后即删除，保持仓库整洁。如需本地复跑，可临时用标准库 `testing` 编写：
 
 ```bash
+go test ./...      # 运行全部包测试
 go test ./... -v   # 查看每个用例的详细输出
 ```
+
+测试通过 `t.Setenv("HOME", tmp)` 把数据重定向到临时目录，不会污染你真实的 `~/.philokun`。
 
 **新增一个子命令**（以 `note` 为例）
 
