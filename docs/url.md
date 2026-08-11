@@ -15,12 +15,12 @@ philokun url add gh https://github.com
 
 ### `philokun url list`
 
-列出全部链接书签。
+列出全部链接书签（带数字 ID 标识，便于辨识）。
 
 ```bash
 philokun url list
-# gh -> https://github.com
-# doc -> https://pkg.go.dev
+# 1. gh -> https://github.com
+# 2. doc -> https://pkg.go.dev
 ```
 
 ### `philokun url open <别名>`
@@ -40,8 +40,10 @@ philokun url open gh
 
 ```json
 {
+  "seq": 2,
   "urls": [
-    { "alias": "gh", "link": "https://github.com" }
+    { "id": 1, "alias": "gh", "link": "https://github.com" },
+    { "id": 2, "alias": "doc", "link": "https://pkg.go.dev" }
   ]
 }
 ```
@@ -51,6 +53,6 @@ philokun url open gh
 | 层 | 文件 | 职责 |
 |----|------|------|
 | 命令 | `cmd/url.go` | `add` / `list` / `open` 子命令，跨平台打开命令 |
-| 存储 | `internal/store/url.go` | `AddURL`（别名唯一，重复则覆盖）/ `ListURLs` / `GetURL` |
+| 存储 | `internal/store/url.go` | `AddURL`（别名唯一，重复则覆盖，自增 ID）/ `ListURLs` / `GetURL` |
 
-别名作为唯一键，重复 `add` 同一别名会更新其链接而非新增。
+别名作为唯一键，重复 `add` 同一别名会更新其链接而非新增。`id` 为自增数字标识，旧数据（无 `id`）在首次列出时自动补充分配并写回。

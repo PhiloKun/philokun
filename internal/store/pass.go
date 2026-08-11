@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -16,14 +17,23 @@ import (
 // vaultFile 是加密保险箱在磁盘上的结构。
 // salt 在首次创建时随机生成并持久化；所有 secret 共用由主密码 + 该 salt 派生的密钥。
 type vaultFile struct {
+	Seq     int               `json:"seq"`    // 自增 ID 计数器
 	Salt    []byte            `json:"salt"`
 	Secrets map[string]secret `json:"secrets"` // key 为明文名称，value 为密文
 }
 
 // secret 是单条加密记录：ciphertext 为 AES-GCM 密文（含 tag），nonce 为本次加密随机数。
+// ID 为展示用的稳定数字标识。
 type secret struct {
+	ID        int    `json:"id"`
 	Ciphertext []byte `json:"ciphertext"`
 	Nonce      []byte `json:"nonce"`
+}
+
+// SecretInfo 是保险箱记录的非密文摘要（供列表展示，不含口令内容）。
+type SecretInfo struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 const vaultStoreFile = "vault.json"
@@ -123,7 +133,15 @@ func SetSecret(name, value, password string) error {
 	if err != nil {
 		return err
 	}
-	vf.Secrets[name] = secret{Ciphertext: ct, Nonce: nonce}
+	// 新名称时分配自增 ID；已存在则保留原 ID。
+	var newID int
+	if s, ok := vf.Secrets[name]; ok {
+		newID = s.ID
+	} else {
+		vf.Seq++
+		newID = vf.Seq
+	}
+	vf.Secrets[name] = secret{ID: newID, Ciphertext: ct, Nonce: nonce}
 	return saveJSON(vaultStoreFile, vf)
 }
 
@@ -153,14 +171,53 @@ func GetSecret(name, password string) (string, error) {
 }
 
 // ListSecretNames 返回保险箱中已有的名称列表（不解密内容）。
-func ListSecretNames() ([]string, error) {
+// 兼容旧数据：缺少 ID 的记录按名称排序后自动分配自增 ID 并写回固化。
+func ListSecrets() ([]SecretInfo, error) {
 	vf, err := loadVault()
 	if err != nil {
 		return nil, err
 	}
+	// 名称排序，保证列表顺序稳定。
 	names := make([]string, 0, len(vf.Secrets))
 	for n := range vf.Secrets {
 		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	needFix := false
+	maxID := vf.Seq
+	for _, n := range names {
+		if vf.Secrets[n].ID > maxID {
+			maxID = vf.Secrets[n].ID
+		}
+	}
+	infos := make([]SecretInfo, 0, len(names))
+	for _, n := range names {
+		s := vf.Secrets[n]
+		if s.ID == 0 {
+			maxID++
+			s.ID = maxID
+			vf.Secrets[n] = s
+			needFix = true
+		}
+		infos = append(infos, SecretInfo{ID: s.ID, Name: n})
+	}
+	if needFix {
+		vf.Seq = maxID
+		_ = saveJSON(vaultStoreFile, vf)
+	}
+	return infos, nil
+}
+
+// ListSecretNames 返回保险箱中已有的名称列表（不解密内容），便于旧调用兼容。
+func ListSecretNames() ([]string, error) {
+	infos, err := ListSecrets()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(infos))
+	for _, s := range infos {
+		names = append(names, s.Name)
 	}
 	return names, nil
 }

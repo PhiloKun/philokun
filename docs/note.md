@@ -1,6 +1,8 @@
 # `note` 终端速记本
 
-随手记录闪念笔记，数据存在本地 `~/.philokun/notes.json`，零外部依赖。支持添加、列出与本地全文检索。
+随手记录闪念笔记，数据存在本地 `~/.philokun/notes.json`，零外部依赖。支持添加、列出、检索、修改、删除与撤销删除。
+
+> 时间显示格式为 `YYYY-MM-DD HH:mm:ss`（存储内部仍是 RFC3339，兼容旧数据）。
 
 ## 子命令
 
@@ -15,11 +17,11 @@ philokun note add 想到一个绝妙的域名 idea
 
 ### `philokun note list`
 
-列出全部笔记（含 ID 与创建时间）。
+列出全部笔记（含 ID 与创建时间），被删除的笔记不会显示。
 
 ```bash
 philokun note list
-# 1. [2026-08-11T10:00:00+08:00] 想到一个绝妙的域名 idea
+# 1. [2026-08-11 10:00:00] 想到一个绝妙的域名 idea
 ```
 
 ### `philokun note search <关键词...>`
@@ -29,8 +31,53 @@ philokun note list
 ```bash
 philokun note search 域名
 # 找到 1 条匹配 "域名" 的笔记：
-# 1. [2026-08-11T10:00:00+08:00] 想到一个绝妙的域名 idea
+# 1. [2026-08-11 10:00:00] 想到一个绝妙的域名 idea
 ```
+
+### `philokun note edit <id>`
+
+修改一条笔记的内容。笔记为单一文本（标题与正文统一为整条文本）。
+
+- 交互模式：先打印当前内容，再提示输入新内容，输入后询问是否保存（`[y/N]`），`n` 或回车取消。
+- 非交互模式：用 `-m/--message` 直接指定新内容并保存（配合 `-y/--yes` 跳过确认）。
+
+```bash
+philokun note edit 1
+# 当前内容: 旧内容
+# 请输入新内容（直接回车取消）: 新内容
+# 保存对笔记 #1 的修改? [y/N]: y
+# 已更新笔记 #1。
+
+philokun note edit 1 -m "用命令直接改好的内容"
+# 已更新笔记 #1。
+```
+
+### `philokun note rm <id>...`
+
+删除一条或多条笔记（批量用空格分隔多个 ID）。删除为**软删除**，操作后给出确认提示 `[y/N]`，可用 `note undo` 恢复；加 `-y/--yes` 跳过确认（脚本友好）。别名：`del` / `delete` / `remove`。
+
+```bash
+philokun note rm 1
+# 确认删除笔记 #1 "旧内容"? [y/N]: y
+# 已删除 1 条笔记。
+
+philokun note rm 1 3 --yes
+# 已删除 2 条笔记。
+```
+
+> 删除不存在的 ID 会直接报错，不会删除任何笔记。
+> 删除/修改成功后都会打印更新后的笔记列表，方便即时核对。
+
+### `philokun note undo`
+
+撤销**最近一次**删除操作，恢复被软删的笔记（整批一起恢复）。
+
+```bash
+philokun note undo
+# 已撤销删除，恢复 2 条笔记。
+```
+
+> 只有最近一次删除批次可被撤销；再次删除会覆盖上一批次记录。
 
 ## 数据存储
 
@@ -42,16 +89,30 @@ philokun note search 域名
 {
   "seq": 1,
   "notes": [
-    { "id": 1, "text": "想到一个绝妙的域名 idea", "at": "2026-08-11T10:00:00+08:00" }
-  ]
+    {
+      "id": 1,
+      "text": "想到一个绝妙的域名 idea",
+      "at": "2026-08-11T10:00:00+08:00",
+      "deleted": false,
+      "deleted_at": ""
+    }
+  ],
+  "last_deleted": [2, 3]
 }
 ```
+
+- `deleted` / `deleted_at`：软删除标记（旧数据无此字段时默认未删除，完全兼容）。
+- `last_deleted`：最近一次删除批次的 ID 列表，供 `undo` 恢复。
 
 ## 实现说明
 
 | 层 | 文件 | 职责 |
 |----|------|------|
-| 命令 | `cmd/note.go` | `add` / `list` / `search` 子命令 |
-| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes`（检索用 `strings.Contains`） |
+| 命令 | `cmd/note.go` | `add` / `list` / `search` / `edit` / `rm` / `undo` 子命令 |
+| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes` / `GetNote` / `UpdateNote` / `DeleteNote` / `DeleteNotes` / `UndoDelete` |
 
-`search` 直接对内存中的笔记做 `strings.Contains` 匹配，无需任何数据库或外部索引，轻量且即时。
+- 删除采用**软删除**：仅置 `deleted=true`，`ListNotes`/`SearchNotes`/`GetNote` 自动过滤，避免误删丢失。
+- `undo` 通过 `last_deleted` 记录最近删除批次，整批恢复。
+- `search` 直接对内存中的笔记做 `strings.Contains` 匹配，无需任何数据库或外部索引，轻量且即时。
+- 交互确认与读取共用单一 stdin 缓冲读取器，避免数据错乱。
+

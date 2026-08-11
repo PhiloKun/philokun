@@ -34,6 +34,17 @@ philokun pass get email
 # my-secret-token
 ```
 
+### `philokun pass list`
+
+列出保险箱中的全部记录（含数字 ID 标识，不解密口令内容）。别名 `ls`。
+
+```bash
+philokun pass list
+# 保险箱中的记录：
+# 1. email
+# 2. wifi
+```
+
 ## 加密方案
 
 - **密钥派生**：主密码 + 随机 `salt`，经 `golang.org/x/crypto/scrypt`（N=2^15, r=8, p=1）派生出 32 字节 AES-256 密钥。
@@ -49,9 +60,11 @@ philokun pass get email
 
 ```json
 {
+  "seq": 2,
   "salt": "Base64...",
   "secrets": {
-    "email": { "ciphertext": "Base64...", "nonce": "Base64..." }
+    "email": { "id": 1, "ciphertext": "Base64...", "nonce": "Base64..." },
+    "wifi":  { "id": 2, "ciphertext": "Base64...", "nonce": "Base64..." }
   }
 }
 ```
@@ -60,7 +73,9 @@ philokun pass get email
 
 | 层 | 文件 | 职责 |
 |----|------|------|
-| 命令 | `cmd/pass.go` | `gen` / `set` / `get` 子命令，密码用 `golang.org/x/term` 隐藏回显 |
-| 存储 | `internal/store/pass.go` | `SetSecret` / `GetSecret` / `ListSecretNames`（scrypt + AES-GCM） |
+| 命令 | `cmd/pass.go` | `gen` / `set` / `get` / `list` 子命令，密码用 `golang.org/x/term` 隐藏回显 |
+| 存储 | `internal/store/pass.go` | `SetSecret` / `GetSecret` / `ListSecrets`（scrypt + AES-GCM，自增 ID） |
 
 > 主密码一旦忘记无法找回，请务必牢记。
+
+每条 secret 的 `id` 为自增数字标识，用于列表展示；旧数据（无 `id`）在首次列出时按名称排序自动分配并写回。口令内容始终仅以密文存储，列表只展示 `id` 与名称。

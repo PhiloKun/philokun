@@ -32,13 +32,17 @@
 | `philokun note add <内容>` | 记一条闪念笔记 |
 | `philokun note list` | 列出全部笔记 |
 | `philokun note search <关键词>` | 按关键词搜索笔记 |
+| `philokun note edit <ID>` | 修改一条笔记（`-m` 直接给内容） |
+| `philokun note rm <ID...>` | 删除笔记，支持批量与确认（`--yes` 跳过） |
+| `philokun note undo` | 撤销最近一次删除，恢复被删笔记 |
 | `philokun pass gen -l <长度>` | 生成高强度随机口令 |
 | `philokun pass set <名称>` | 加密保存一条口令到本地保险箱 |
 | `philokun pass get <名称>` | 从保险箱解密取出口令 |
+| `philokun pass list` | 列出保险箱全部记录（含 ID） |
 | `philokun weather <城市>` | 查询城市当天天气 |
 | `philokun pomodoro <分钟数>` | 启动番茄钟倒计时 |
 | `philokun url add <别名> <链接>` | 添加一条别名链接 |
-| `philokun url list` | 列出全部链接 |
+| `philokun url list` | 列出全部链接（含 ID） |
 | `philokun url open <别名>` | 在浏览器打开别名对应的链接 |
 | `philokun version` | 打印当前版本号 |
 | `philokun qrcode` | 启动本地网页版二维码生成器 |

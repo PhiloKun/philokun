@@ -86,6 +86,28 @@ var passGetCmd = &cobra.Command{
 	},
 }
 
+// passListCmd 列出保险箱里所有记录的 ID 与名称（不解密内容）。
+var passListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "列出保险箱中所有记录（含 ID）",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		secrets, err := store.ListSecrets()
+		if err != nil {
+			return err
+		}
+		if len(secrets) == 0 {
+			fmt.Println("保险箱为空。用 `philokun pass set <名称>` 添加第一条吧。")
+			return nil
+		}
+		fmt.Println("保险箱中的记录：")
+		for _, s := range secrets {
+			fmt.Printf("%d. %s\n", s.ID, s.Name)
+		}
+		return nil
+	},
+}
+
 // generatePassword 用 crypto/rand 生成指定长度的随机口令。
 func generatePassword(length int) (string, error) {
 	result := make([]byte, length)
@@ -123,5 +145,6 @@ func init() {
 	passCmd.AddCommand(passGenCmd)
 	passCmd.AddCommand(passSetCmd)
 	passCmd.AddCommand(passGetCmd)
+	passCmd.AddCommand(passListCmd)
 	rootCmd.AddCommand(passCmd)
 }

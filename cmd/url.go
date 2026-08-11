@@ -45,7 +45,7 @@ var urlListCmd = &cobra.Command{
 			return nil
 		}
 		for _, u := range urls {
-			fmt.Printf("%s -> %s\n", u.Alias, u.Link)
+			fmt.Printf("%d. %s -> %s\n", u.ID, u.Alias, u.Link)
 		}
 		return nil
 	},
