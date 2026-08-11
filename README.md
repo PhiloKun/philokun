@@ -44,7 +44,8 @@
 | `philokun pass get <名称> [-j]` | 从保险箱解密取出口令（默认纯文本，-j 输出 JSON） |
 | `philokun pass rm <名称> [-f]` | 删除保险箱中的记录（-f 跳过确认） |
 | `philokun pass list` | 列出保险箱全部记录（含 ID） |
-| `philokun weather <城市>` | 查询城市当天天气 |
+| `philokun weather <城市...>` | 查询天气（当前/小时/7天/空气质量，多城对比） |
+| `philokun weather web <城市...>` | 启动毛玻璃卡片天气网页（多城横滑/渐变背景/预警） |
 | `philokun pomodoro <分钟数>` | 启动番茄钟倒计时（别名 `pomo`） |
 | `philokun url add <别名> <链接>` | 添加一条别名链接 |
 | `philokun url list` | 列出全部链接（含 ID） |
