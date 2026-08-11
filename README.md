@@ -17,7 +17,7 @@
 - **基于 Cobra**：命令结构清晰，新增子命令只需新增一个文件并在 `init()` 里注册。
 - **符合 Unix 习惯**：错误打到 stderr 并以非零退出码结束，方便在脚本里组合使用。
 
-> 当前为 `0.1.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、二维码生成等功能。
+> 当前为 `0.1.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成等功能。
 
 ---
 
@@ -50,6 +50,11 @@
 | `philokun url add <别名> <链接>` | 添加一条别名链接 |
 | `philokun url list` | 列出全部链接（含 ID） |
 | `philokun url open <别名>` | 在浏览器打开别名对应的链接 |
+| `philokun shorten create <链接> [-c 短码]` | 创建短链（可自定义短码） |
+| `philokun shorten get <短码>` | 查询短码对应的原始链接与点击数 |
+| `philokun shorten list` | 列出全部短链 |
+| `philokun shorten rm <短码>` | 删除一条短链 |
+| `philokun shorten serve [-p 端口]` | 启动本地短链重定向服务 |
 | `philokun version` | 打印当前版本号 |
 | `philokun qrcode` | 启动本地网页版二维码生成器 |
 
@@ -65,6 +70,7 @@
 - [天气查询 `weather`](./docs/weather.md)
 - [番茄钟 `pomodoro`](./docs/pomodoro.md)
 - [链接管理 `url`](./docs/url.md)
+- [短链服务 `shorten`](./docs/shorten.md)
 - [版本命令 `version`](./docs/version.md)
 - [二维码生成器 `qrcode`](./docs/qrcode.md)
 
@@ -107,6 +113,7 @@ philokun/
 │   ├── weather.go          # weather 子命令（Open-Meteo 联网查询）
 │   ├── pomodoro.go         # pomodoro 子命令（番茄钟倒计时）
 │   ├── url.go              # url 分组命令 + add / list / open
+│   ├── shorten.go          # shorten 分组命令 + create / get / list / rm / serve
 │   ├── version.go          # version 子命令
 │   ├── qrcode.go           # qrcode 子命令（本地 Web 服务 + 二维码 API）
 │   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
@@ -116,6 +123,7 @@ philokun/
         ├── todo.go         # 待办持久化（含完成状态/删除）
         ├── note.go         # 笔记持久化 + 全文检索
         ├── url.go          # URL 书签持久化
+        ├── short.go        # 短链持久化（base62 短码 / CRUD / 点击计数）
         ├── pass.go         # 加密保险箱（scrypt + AES-GCM）
         └── qrcode.go       # 二维码 PNG 生成
 ```
@@ -176,6 +184,7 @@ philokun version 0.1.0
 | `todo.json` | 待办（含 ID / 完成状态） |
 | `notes.json` | 闪念笔记 |
 | `urls.json` | URL 书签 |
+| `shorts.json` | 短链映射（短码 ↔ 长链接，含点击数） |
 | `vault.json` | 加密口令保险箱（scrypt + AES-GCM） |
 
 `todo.json` 结构示例：
@@ -249,4 +258,4 @@ go build -ldflags "-X philokun/cmd.version=1.2.3" -o philokun .
 
 ---
 
-*最后更新：2026-08-10*
+*最后更新：2026-08-11*
