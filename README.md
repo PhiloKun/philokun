@@ -42,6 +42,7 @@
 | `philokun pass gen -l <长度>` | 生成高强度随机口令 |
 | `philokun pass set <名称>` | 加密保存一条口令到本地保险箱 |
 | `philokun pass get <名称> [-j]` | 从保险箱解密取出口令（默认纯文本，-j 输出 JSON） |
+| `philokun pass rm <名称> [-f]` | 删除保险箱中的记录（-f 跳过确认） |
 | `philokun pass list` | 列出保险箱全部记录（含 ID） |
 | `philokun weather <城市>` | 查询城市当天天气 |
 | `philokun pomodoro <分钟数>` | 启动番茄钟倒计时 |

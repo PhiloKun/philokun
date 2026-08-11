@@ -61,6 +61,21 @@ philokun pass list
 # 2. wifi
 ```
 
+### `philokun pass rm <名称> [-f/--force]`
+
+删除保险箱中的指定记录。默认会要求确认（输入 `y` 才执行），加 `-f` 跳过确认。
+
+```bash
+philokun pass rm email
+# 确认要删除保险箱中的记录 "email" 吗？此操作不可恢复 (y/N): y
+# 已删除保险箱中的记录 "email"。
+
+philokun pass rm email -f
+# 已删除保险箱中的记录 "email"。
+```
+
+记录不存在时不会报错，仅提示无需删除；保险箱未初始化时给出明确错误。
+
 ## 加密方案
 
 - **密钥派生**：主密码 + 随机 `salt`，经 `golang.org/x/crypto/scrypt`（N=2^15, r=8, p=1）派生出 32 字节 AES-256 密钥。

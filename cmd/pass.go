@@ -106,6 +106,38 @@ var passGetCmd = &cobra.Command{
 	},
 }
 
+// passRmCmd 从保险箱中删除指定名称的记录。
+var passRmCmd = &cobra.Command{
+	Use:   "rm <名称>",
+	Short: "删除保险箱中的记录",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		name := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+		if !force {
+			fmt.Printf("确认要删除保险箱中的记录 %q 吗？此操作不可恢复 (y/N): ", name)
+			var answer string
+			if _, err := fmt.Scanln(&answer); err != nil && err.Error() != "unexpected newline" {
+				return err
+			}
+			if answer != "y" && answer != "Y" {
+				fmt.Println("已取消删除。")
+				return nil
+			}
+		}
+		ok, err := store.RmSecret(name)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			fmt.Printf("保险箱中没有名为 %q 的记录，无需删除。\n", name)
+			return nil
+		}
+		fmt.Printf("已删除保险箱中的记录 %q。\n", name)
+		return nil
+	},
+}
+
 // passListCmd 列出保险箱里所有记录的 ID 与名称（不解密内容）。
 var passListCmd = &cobra.Command{
 	Use:     "list",
@@ -163,10 +195,12 @@ func init() {
 	passSetCmd.Flags().StringP("value", "v", "", "要保存的口令（省略则在终端输入）")
 
 	passGetCmd.Flags().BoolP("json", "j", false, "以 JSON 格式输出（包含 password / retrieved_at / vault）")
+	passRmCmd.Flags().BoolP("force", "f", false, "跳过确认直接删除")
 
 	passCmd.AddCommand(passGenCmd)
 	passCmd.AddCommand(passSetCmd)
 	passCmd.AddCommand(passGetCmd)
+	passCmd.AddCommand(passRmCmd)
 	passCmd.AddCommand(passListCmd)
 	rootCmd.AddCommand(passCmd)
 }

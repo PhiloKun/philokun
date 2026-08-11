@@ -175,6 +175,26 @@ func GetSecret(name, password string) (string, error) {
 	return string(plain), nil
 }
 
+// RmSecret 删除保险箱中指定名称的记录。
+// 返回 (true, nil) 表示删除成功；(false, nil) 表示该名称不存在，无需删除。
+func RmSecret(name string) (bool, error) {
+	vf, err := loadVault()
+	if err != nil {
+		return false, err
+	}
+	if len(vf.Salt) == 0 {
+		return false, errors.New("保险箱尚未初始化，请先使用 pass set 创建")
+	}
+	if _, ok := vf.Secrets[name]; !ok {
+		return false, nil
+	}
+	delete(vf.Secrets, name)
+	if err := saveJSON(vaultStoreFile, vf); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // ListSecretNames 返回保险箱中已有的名称列表（不解密内容）。
 // 兼容旧数据：缺少 ID 的记录按名称排序后自动分配自增 ID 并写回固化。
 func ListSecrets() ([]SecretInfo, error) {
