@@ -114,6 +114,7 @@ type forecastResp struct {
 	Hourly struct {
 		Time          []string  `json:"time"`
 		Temperature2m []float64 `json:"temperature_2m"`
+		Humidity2m    []float64 `json:"relativehumidity_2m"`
 		Weathercode   []int     `json:"weathercode"`
 	} `json:"hourly"`
 	Daily struct {
@@ -176,7 +177,7 @@ func fetchWeather(city string) (weatherData, error) {
 	}
 	u := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f"+
 		"&current_weather=true"+
-		"&hourly=temperature_2m,weathercode"+
+		"&hourly=temperature_2m,relativehumidity_2m,weathercode"+
 		"&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,precipitation_probability_max"+
 		"&timezone=auto",
 		forecastURL, geo.Latitude, geo.Longitude)
@@ -186,7 +187,7 @@ func fetchWeather(city string) (weatherData, error) {
 	}
 
 	wd := weatherData{
-		City:  geo.Name,
+		City:    geo.Name,
 		Country: geo.Country,
 		Current: currentBlock{
 			Temp:      fr.CurrentWeather.Temperature,
@@ -195,6 +196,14 @@ func fetchWeather(city string) (weatherData, error) {
 			Code:      fr.CurrentWeather.Weathercode,
 			Time:      fr.CurrentWeather.Time,
 		},
+	}
+
+	// 当前湿度：current_weather 的 humidity 字段有时为空，
+	// 优先取最近整点的 hourly 湿度，没有则保持原值。
+	if nowIdx := nearestHourIndex(fr.Hourly.Time); nowIdx >= 0 && nowIdx < len(fr.Hourly.Humidity2m) {
+		if h := fr.Hourly.Humidity2m[nowIdx]; h > 0 {
+			wd.Current.Humidity = h
+		}
 	}
 
 	// 小时预报：取今天未来的时段（最多 24 条）。
@@ -312,34 +321,38 @@ func printCityWeather(city string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("城市: %s %s\n", wd.City, flag(wd.Current.Code))
-	fmt.Printf("温度: %.1f°C   %s\n", wd.Current.Temp, describeWeather(wd.Current.Code))
-	fmt.Printf("湿度: %.0f%%\n", wd.Current.Humidity)
-	fmt.Printf("风力: %.1f km/h\n", wd.Current.Wind)
+	// 标签已明确含义、取值范围/单位，便于用户无需查文档即可理解。
+	fmt.Printf("城市 (City): %s %s\n", wd.City, flag(wd.Current.Code))
+	fmt.Printf("温度 (Temperature): %.1f°C  天气: %s\n", wd.Current.Temp, describeWeather(wd.Current.Code))
+	fmt.Printf("湿度 (Humidity): %.0f%%  范围: 0~100%% (相对湿度)\n", wd.Current.Humidity)
+	fmt.Printf("风力 (Wind Speed): %.1f km/h  示例: 0~12 轻风, ≥40 大风\n", wd.Current.Wind)
 	if wd.Air > 0 {
-		fmt.Printf("空气质量: %d (%s)\n", wd.Air, wd.AirDesc)
+		fmt.Printf("空气质量 (AQI): %d (%s)  范围: 0~500, 数值越低越好\n", wd.Air, wd.AirDesc)
+	} else {
+		fmt.Println("空气质量 (AQI): 暂无数据")
 	}
 	if len(wd.Alerts) > 0 {
 		for _, a := range wd.Alerts {
-			fmt.Printf("⚠️ 预警: %s\n", a)
+			fmt.Printf("⚠️ 预警 (Alert): %s\n", a)
 		}
 	}
 
 	if len(wd.Hourly) > 0 {
-		fmt.Printf("\n📈 小时预报（温度趋势）:\n")
-		fmt.Printf("%s\n", asciiSpark(wd.Hourly))
+		fmt.Printf("\n📈 小时预报 (Hourly Forecast, 未来 24h, 单位 °C):\n")
+		fmt.Printf("温度趋势: %s\n", asciiSpark(wd.Hourly))
+		fmt.Print("关键时段: ")
 		for i, h := range wd.Hourly {
 			if i%4 == 0 {
-				fmt.Printf("%s %s %.0f°C ", h.Time, flag(h.Code), h.Temp)
+				fmt.Printf("[%s %s %.0f°C] ", h.Time, flag(h.Code), h.Temp)
 			}
 		}
 		fmt.Println()
 	}
 
 	if len(wd.Daily) > 0 {
-		fmt.Printf("\n🗓️ 未来 %d 天:\n", len(wd.Daily))
+		fmt.Printf("\n🗓️ 未来 7 天 (Daily Forecast, °C / km/h / %%):\n")
 		for _, d := range wd.Daily {
-			fmt.Printf("  [%s] %s %s  %s %.0f°C/%.0f°C  风%.0f 降水%.0f%%\n",
+			fmt.Printf("  [%s] %s %s  %s  最高/最低: %.0f°C/%.0f°C  最大风速: %.0f km/h  降水概率: %.0f%%\n",
 				weekday(d.Date), flag(d.Code), describeWeather(d.Code),
 				d.Date[5:], d.TempMax, d.TempMin, d.WindMax, d.PrecipProb)
 		}
@@ -347,17 +360,15 @@ func printCityWeather(city string) error {
 	return nil
 }
 
-// asciiSpark 用 ASCII 字符画出温度趋势曲线。
+// asciiSpark 用纯 ASCII 字符画出温度趋势曲线，避免终端字体缺失导致的乱码。
+// 使用 8 级斜坡字符 ',.`-~:;=!*#$@' 表示从最低到最高温度。
 func asciiSpark(hours []hourBlock) string {
 	if len(hours) == 0 {
 		return ""
 	}
 	const width = 40
 	n := len(hours)
-	step := (n - 1) / (width - 1)
-	if step < 1 {
-		step = 1
-	}
+	step := max((n-1)/(width-1), 1)
 	min, max := hours[0].Temp, hours[0].Temp
 	for _, h := range hours {
 		if h.Temp < min {
@@ -371,9 +382,9 @@ func asciiSpark(hours []hourBlock) string {
 	if span < 0.001 {
 		span = 1
 	}
-	const ramp = "▁▂▃▄▅▆▇█"
+	const ramp = ",.-~:;=!*#$@"
 	var b strings.Builder
-	for i := 0; i < width; i++ {
+	for i := range width {
 		idx := i * step
 		if idx >= n {
 			idx = n - 1
@@ -382,6 +393,27 @@ func asciiSpark(hours []hourBlock) string {
 		b.WriteByte(ramp[pos])
 	}
 	return b.String()
+}
+
+// nearestHourIndex 找到当前时间最接近的 hourly 数据下标。
+func nearestHourIndex(times []string) int {
+	now := time.Now()
+	best, bestDiff := -1, time.Hour
+	for i, t := range times {
+		tm, err := time.Parse("2006-01-02T15:04", t)
+		if err != nil {
+			continue
+		}
+		d := tm.Sub(now)
+		if d < 0 {
+			d = -d
+		}
+		if d < bestDiff {
+			bestDiff = d
+			best = i
+		}
+	}
+	return best
 }
 
 // ===================== 展示：Web =====================
