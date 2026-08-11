@@ -24,15 +24,31 @@ philokun pass set email
 # 已加密保存 "email"。
 ```
 
-### `philokun pass get <名称>`
+### `philokun pass get <名称> [-j/--json]`
 
-用主密码解密取出口令明文。
+用主密码解密取出口令。
+
+默认直接输出纯文本：
 
 ```bash
 philokun pass get email
 # 请输入保险箱主密码: ********
 # my-secret-token
 ```
+
+使用 `-j` / `--json` 时，输出结构化的 JSON 对象，包含密码明文、提取时间戳（UTC，RFC3339）与保险箱标识符：
+
+```bash
+philokun pass get email -j
+# 请输入保险箱主密码: ********
+# {
+#   "password": "my-secret-token",
+#   "retrieved_at": "2026-08-11T09:07:53Z",
+#   "vault": "vault.json"
+# }
+```
+
+JSON 输出会正确转义特殊字符，便于在脚本或其他编程环境中安全解析；原始密码值不变，仅调整外层格式。
 
 ### `philokun pass list`
 

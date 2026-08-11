@@ -38,6 +38,11 @@ type SecretInfo struct {
 
 const vaultStoreFile = "vault.json"
 
+// VaultIdentifier 返回当前保险箱的持久化标识符。
+func VaultIdentifier() string {
+	return vaultStoreFile
+}
+
 // scrypt 参数：N=1<<15 在安全性与速度间取得平衡，适合本地个人工具。
 const (
 	scryptN = 1 << 15

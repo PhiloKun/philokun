@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -81,8 +83,26 @@ var passGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println(value)
-		return nil
+
+		useJSON, _ := cmd.Flags().GetBool("json")
+		if !useJSON {
+			fmt.Println(value)
+			return nil
+		}
+
+		// 结构化输出：密码明文、提取时间戳、保险箱标识符。
+		out := struct {
+			Password    string `json:"password"`
+			RetrievedAt string `json:"retrieved_at"`
+			Vault       string `json:"vault"`
+		}{
+			Password:    value,
+			RetrievedAt: time.Now().UTC().Format(time.RFC3339),
+			Vault:       store.VaultIdentifier(),
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
 	},
 }
 
@@ -141,6 +161,8 @@ func readPassword(prompt string) (string, error) {
 func init() {
 	passGenCmd.Flags().IntP("length", "l", 16, "口令长度")
 	passSetCmd.Flags().StringP("value", "v", "", "要保存的口令（省略则在终端输入）")
+
+	passGetCmd.Flags().BoolP("json", "j", false, "以 JSON 格式输出（包含 password / retrieved_at / vault）")
 
 	passCmd.AddCommand(passGenCmd)
 	passCmd.AddCommand(passSetCmd)
