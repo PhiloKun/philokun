@@ -28,6 +28,30 @@
 | `philokun todo add <内容>` | 追加一条待办 |
 | `philokun todo list` | 列出全部待办 |
 | `philokun version` | 打印当前版本号 |
+| `philokun qrcode` | 启动本地网页版二维码生成器 |
+
+---
+
+## 🔳 二维码生成器
+
+`philokun qrcode` 会启动一个本地 Web 服务，打开网页即可把文本、网址、数字等任意内容实时转换成二维码图片，并支持下载（PNG）与复制到剪贴板。界面自适应桌面与移动端。
+
+```bash
+# 默认监听 http://127.0.0.1:8080
+./philokun qrcode
+
+# 自定义监听地址与端口
+./philokun qrcode --host 0.0.0.0 --port 9000
+```
+
+在浏览器打开后：
+
+- **实时生成**：输入框内输入内容，停止输入约 250ms 后自动刷新二维码（防抖，响应迅速）。
+- **任意长度**：底层库会自动选择 QR 版本以容纳不同长度的数据。
+- **下载 / 复制**：一键下载 PNG，或把二维码图片直接复制到剪贴板。
+- **响应式**：在手机与桌面浏览器上都能良好显示。
+
+> 二维码通过 `/api/qrcode?text=<内容>` 接口生成，返回标准 PNG，可单独用于脚本或自动化。
 
 ---
 
@@ -40,7 +64,9 @@ philokun/
 ├── cmd/                    # 命令定义层（Cobra 命令）
 │   ├── root.go             # 根命令 philokun
 │   ├── todo.go             # todo 分组命令 + add / list 子命令
-│   └── version.go          # version 子命令
+│   ├── version.go          # version 子命令
+│   ├── qrcode.go           # qrcode 子命令（本地 Web 服务 + 二维码 API）
+│   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
 └── internal/
     └── store/
         └── todo.go         # 数据持久化层（读写本地 JSON）

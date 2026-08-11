@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二维码生成器</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --fg: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #0ea5e9;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: linear-gradient(160deg, #0f172a 0%, #111827 100%);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 22px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      background: #0f172a;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+    }
+    .counter {
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 6px 2px 0;
+    }
+    .qr-wrap {
+      margin: 22px auto 0;
+      width: 240px;
+      height: 240px;
+      background: #fff;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: opacity 0.2s;
+    }
+    .qr-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .qr-placeholder {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 0 16px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    button {
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s, background 0.2s;
+      color: #fff;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-download { background: var(--accent-2); }
+    .btn-download:hover:not(:disabled) { background: var(--accent); }
+    .btn-copy { background: #475569; }
+    .btn-copy:hover:not(:disabled) { background: #64748b; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 32px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    @media (max-width: 380px) {
+      .app { padding: 22px 16px; }
+      .qr-wrap { width: 200px; height: 200px; }
+      .actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>二维码生成器</h1>
+    <p class="subtitle">输入文本 / 网址 / 数字，实时生成二维码</p>
+
+    <label for="input">输入内容</label>
+    <textarea id="input" placeholder="在此输入任意内容，例如：https://example.com 或 你好，世界！" autofocus></textarea>
+    <div class="counter"><span id="count">0</span> 字符</div>
+
+    <div class="qr-wrap">
+      <div class="qr-placeholder" id="placeholder">二维码将显示在这里</div>
+      <img id="qr" alt="二维码" style="display:none" />
+    </div>
+
+    <div class="actions">
+      <button class="btn-download" id="download" disabled>下载 PNG</button>
+      <button class="btn-copy" id="copy" disabled>复制图片</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const input = document.getElementById('input');
+    const qr = document.getElementById('qr');
+    const placeholder = document.getElementById('placeholder');
+    const count = document.getElementById('count');
+    const downloadBtn = document.getElementById('download');
+    const copyBtn = document.getElementById('copy');
+    const toast = document.getElementById('toast');
+
+    let timer = null;
+    let lastText = null;
+
+    // 输入时防抖，停止输入 250ms 后再请求，保证响应迅速且不过载。
+    input.addEventListener('input', () => {
+      const text = input.value;
+      count.textContent = text.length;
+      clearTimeout(timer);
+      if (text.trim() === '') {
+        showEmpty();
+        return;
+      }
+      timer = setTimeout(() => requestQR(text), 250);
+    });
+
+    async function requestQR(text) {
+      if (text === lastText) return;
+      lastText = text;
+      const url = '/api/qrcode?text=' + encodeURIComponent(text);
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          if (resp.status === 204) { showEmpty(); return; }
+          const msg = await resp.text();
+          toastMsg(msg || '生成失败');
+          return;
+        }
+        const blob = await resp.blob();
+        const objUrl = URL.createObjectURL(blob);
+        qr.src = objUrl;
+        qr.style.display = 'block';
+        placeholder.style.display = 'none';
+        downloadBtn.disabled = false;
+        copyBtn.disabled = false;
+      } catch (e) {
+        toastMsg('网络错误，请重试');
+      }
+    }
+
+    function showEmpty() {
+      lastText = null;
+      qr.style.display = 'none';
+      placeholder.style.display = 'block';
+      downloadBtn.disabled = true;
+      copyBtn.disabled = true;
+    }
+
+    // 下载：构造带时间戳的文件名，避免覆盖。
+    downloadBtn.addEventListener('click', () => {
+      if (!qr.src) return;
+      const a = document.createElement('a');
+      a.href = qr.src;
+      a.download = 'qrcode-' + Date.now() + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toastMsg('已下载二维码');
+    });
+
+    // 复制：借助 Clipboard API 写入 PNG 到剪贴板，失败则提示。
+    copyBtn.addEventListener('click', async () => {
+      if (!qr.src) return;
+      try {
+        const resp = await fetch(qr.src);
+        const blob = await resp.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        toastMsg('已复制到剪贴板');
+      } catch (e) {
+        toastMsg('当前环境不支持复制图片，请改用下载');
+      }
+    });
+
+    let toastTimer = null;
+    function toastMsg(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+  </script>
+</body>
+</html>
