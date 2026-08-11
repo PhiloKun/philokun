@@ -190,6 +190,38 @@ var noteUndoCmd = &cobra.Command{
 	},
 }
 
+// noteClearCmd 清空全部笔记，带确认提示，--yes 跳过确认。
+var noteClearCmd = &cobra.Command{
+	Use:     "clear",
+	Aliases: []string{"empty", "clean"},
+	Short:   "清空全部笔记",
+	Args:    cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		count, err := store.ListNotes()
+		if err != nil {
+			return err
+		}
+		if len(count) == 0 {
+			fmt.Println("当前没有笔记，无需清空。")
+			return nil
+		}
+		skip, _ := cmd.Flags().GetBool("yes")
+		if !skip {
+			if !confirmPrompt(fmt.Sprintf("确认清空全部 %d 条笔记？此操作可用 `philokun note undo` 撤销", len(count))) {
+				fmt.Println("已取消清空。")
+				return nil
+			}
+		}
+		n, err := store.ClearNotes()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("已清空 %d 条笔记。\n", n)
+		fmt.Println("更新后的笔记列表：")
+		return printNoteList()
+	},
+}
+
 // printNoteList 打印当前全部未删除笔记，空时给出友好提示。
 func printNoteList() error {
 	notes, err := store.ListNotes()
@@ -244,10 +276,12 @@ func init() {
 	noteCmd.AddCommand(noteEditCmd)
 	noteCmd.AddCommand(noteRmCmd)
 	noteCmd.AddCommand(noteUndoCmd)
+	noteCmd.AddCommand(noteClearCmd)
 
 	noteEditCmd.Flags().StringP("message", "m", "", "直接指定新内容（非交互模式）")
 	noteEditCmd.Flags().BoolP("yes", "y", false, "跳过保存确认直接保存")
 	noteRmCmd.Flags().BoolP("yes", "y", false, "跳过删除确认")
+	noteClearCmd.Flags().BoolP("yes", "y", false, "跳过清空确认")
 
 	rootCmd.AddCommand(noteCmd)
 }

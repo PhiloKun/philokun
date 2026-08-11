@@ -85,6 +85,50 @@ func TestNoteCRUDAndUndo(t *testing.T) {
 	}
 }
 
+// 清空后列表应返回 0 条，undo 可完整恢复。
+func TestNoteClearAndUndo(t *testing.T) {
+	setupTempHome(t)
+
+	AddNote("one")
+	AddNote("two")
+	AddNote("three")
+
+	n, err := ClearNotes()
+	if err != nil {
+		t.Fatalf("ClearNotes: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("期望清空 3 条，实际 %d", n)
+	}
+	notes, _ := ListNotes()
+	if len(notes) != 0 {
+		t.Fatalf("清空后期望 0 条，实际 %d", len(notes))
+	}
+
+	// 二次清空应返回 0
+	if n2, _ := ClearNotes(); n2 != 0 {
+		t.Fatalf("二次清空应返回 0，实际 %d", n2)
+	}
+
+	// undo 应完整恢复 3 条
+	restored, err := UndoDelete()
+	if err != nil {
+		t.Fatalf("UndoDelete: %v", err)
+	}
+	if restored != 3 {
+		t.Fatalf("期望恢复 3 条，实际 %d", restored)
+	}
+	notes, _ = ListNotes()
+	for _, n := range notes {
+		if n.Deleted {
+			t.Fatal("恢复后仍存在已删除标记")
+		}
+	}
+	if len(notes) != 3 {
+		t.Fatalf("恢复后期望 3 条，实际 %d", len(notes))
+	}
+}
+
 // 删除后新增笔记应从 1 开始回收编号，undo 时若冲突则自动换号。
 func TestNoteIDRecycling(t *testing.T) {
 	setupTempHome(t)

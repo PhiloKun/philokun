@@ -34,7 +34,8 @@
 | `philokun note search <关键词>` | 按关键词搜索笔记 |
 | `philokun note edit <ID>` | 修改一条笔记（`-m` 直接给内容） |
 | `philokun note rm <ID...>` | 删除笔记，支持批量与确认（`--yes` 跳过） |
-| `philokun note undo` | 撤销最近一次删除，恢复被删笔记 |
+| `philokun note clear` | 清空全部笔记，带确认（`--yes` 跳过） |
+| `philokun note undo` | 撤销最近一次删除/清空，恢复被删笔记 |
 | `philokun pass gen -l <长度>` | 生成高强度随机口令 |
 | `philokun pass set <名称>` | 加密保存一条口令到本地保险箱 |
 | `philokun pass get <名称>` | 从保险箱解密取出口令 |

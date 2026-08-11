@@ -195,6 +195,28 @@ func UpdateNote(id int, text string) (*Note, error) {
 	return nil, errNotFound(fmt.Sprintf("笔记 #%d 不存在", id))
 }
 
+// ClearNotes 清空全部笔记（逻辑删除标记后持久化），并返回被清空的条数。
+// 若原本就没有任何笔记，返回 0 且不视为错误。
+func ClearNotes() (int, error) {
+	nf, err := loadNotes()
+	if err != nil {
+		return 0, err
+	}
+	cleared := 0
+	for i := range nf.Notes {
+		if !nf.Notes[i].Deleted {
+			nf.Notes[i].Deleted = true
+			nf.Notes[i].DeletedAt = time.Now().Format(time.RFC3339)
+			nf.LastDeleted = appendUnique(nf.LastDeleted, nf.Notes[i].ID)
+			cleared++
+		}
+	}
+	if err := saveNotes(nf); err != nil {
+		return 0, err
+	}
+	return cleared, nil
+}
+
 // UndoDelete 恢复最近一次删除批次中的笔记，返回恢复数量。
 // 若被恢复笔记的原始 ID 已被新笔记占用，则自动为其分配新的最小可用 ID。
 func UndoDelete() (int, error) {

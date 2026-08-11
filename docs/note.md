@@ -80,6 +80,21 @@ philokun note undo
 
 > 只有最近一次删除批次可被撤销；再次删除会覆盖上一批次记录。
 
+### `philokun note clear`
+
+清空**全部**笔记（软删除，可用 `note undo` 恢复）。操作前有确认提示 `[y/N]`，加 `-y/--yes` 跳过确认（脚本友好）。别名：`empty` / `clean`。
+
+```bash
+philokun note clear
+# 确认清空全部 3 条笔记？此操作可用 `philokun note undo` 撤销 [y/N]: y
+# 已清空 3 条笔记。
+
+philokun note clear --yes
+# 已清空 3 条笔记。
+```
+
+> 清空为空时直接提示无需操作；清空后列表显示为空状态，可用 `note undo` 一键恢复。
+
 ## 数据存储
 
 ```
@@ -111,7 +126,7 @@ philokun note undo
 | 层 | 文件 | 职责 |
 |----|------|------|
 | 命令 | `cmd/note.go` | `add` / `list` / `search` / `edit` / `rm` / `undo` 子命令 |
-| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes` / `GetNote` / `UpdateNote` / `DeleteNote` / `DeleteNotes` / `UndoDelete` |
+| 存储 | `internal/store/note.go` | `AddNote` / `ListNotes` / `SearchNotes` / `GetNote` / `UpdateNote` / `DeleteNote` / `DeleteNotes` / `ClearNotes` / `UndoDelete` |
 
 - 删除采用**软删除**：仅置 `deleted=true`，`ListNotes`/`SearchNotes`/`GetNote` 自动过滤，避免误删丢失。
 - `undo` 通过 `last_deleted` 记录最近删除批次，整批恢复。
