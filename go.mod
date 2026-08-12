@@ -1,4 +1,4 @@
-module philokun
+module github.com/philokun
 
 go 1.26.5
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"philokun/internal/store"
+	"github.com/philokun/internal/store"
 )
 
 // todoCmd 是“分组命令”：它本身不做事，只是 add / list 的父级。

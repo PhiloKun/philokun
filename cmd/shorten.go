@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"philokun/internal/store"
+	"github.com/philokun/internal/store"
 )
 
 var (

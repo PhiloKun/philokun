@@ -1,6 +1,6 @@
 package main
 
-import "philokun/cmd"
+import "github.com/philokun/cmd"
 
 func main() {
 	cmd.Execute()

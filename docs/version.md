@@ -19,7 +19,7 @@ philokun version 0.1.0
 进阶做法：用编译注入在构建时指定版本，免去修改源码：
 
 ```bash
-go build -ldflags "-X philokun/cmd.version=1.2.3" -o philokun .
+go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 ```
 
 ## 实现说明

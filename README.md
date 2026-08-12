@@ -240,7 +240,7 @@ go test ./... -v   # 查看每个用例的详细输出
 `cmd/version.go` 中的 `version` 变量即当前版本。进阶做法是用编译注入，免改源码：
 
 ```bash
-go build -ldflags "-X philokun/cmd.version=1.2.3" -o philokun .
+go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 ```
 
 ---

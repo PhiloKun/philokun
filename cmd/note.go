@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"philokun/internal/store"
+	"github.com/philokun/internal/store"
 )
 
 // noteCmd 是笔记分组命令，本身不做事，只是各子命令的父级。

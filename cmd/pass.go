@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"philokun/internal/store"
+	"github.com/philokun/internal/store"
 )
 
 // 口令生成可用字符集（去掉易混淆的 0/O、1/l/I）。

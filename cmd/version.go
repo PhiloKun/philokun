@@ -7,7 +7,7 @@ import (
 )
 
 // version 是当前的版本号，以后发布新版本时改这里即可。
-// 进阶做法：用 -ldflags "-X philokun/cmd.version=1.2.3" 在编译时注入，
+// 进阶做法：用 -ldflags "-X github.com/philokun/cmd.version=1.2.3" 在编译时注入，
 // 这样不用改源码就能打不同版本的二进制。
 var version = "0.1.0"
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"philokun/internal/store"
+	"github.com/philokun/internal/store"
 )
 
 // urlCmd 是常用链接管理分组命令。
