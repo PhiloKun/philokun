@@ -456,7 +456,7 @@ func asciiLineChart(hours []hourBlock) string {
 	xlabels := make([]string, width)
 	for c := 0; c < width; c++ {
 		if c%6 == 0 {
-			xlabels[c] = hours[colIdx[c]].Time[11:16] // 形如 15:00
+			xlabels[c] = timeLabel(hours[colIdx[c]].Time) // 形如 15:00
 		} else {
 			xlabels[c] = "  "
 		}
@@ -477,8 +477,16 @@ func asciiLineChart(hours []hourBlock) string {
 	}
 	b.WriteString("  ^ = 极值\n")
 	fmt.Fprintf(&b, "最低 (Min): %.1f°C @ %s   最高 (Max): %.1f°C @ %s\n",
-		min, hours[minIdx].Time[11:16], max, hours[maxIdx].Time[11:16])
+		min, timeLabel(hours[minIdx].Time), max, timeLabel(hours[maxIdx].Time))
 	return b.String()
+}
+
+// timeLabel 从时间字符串中提取 HH:MM，兼容 "2023-08-12T15:00" 和 "15:00" 两种格式。
+func timeLabel(t string) string {
+	if len(t) >= 5 {
+		return t[len(t)-5:]
+	}
+	return t
 }
 
 // nearestHourIndex 找到当前时间最接近的 hourly 数据下标。

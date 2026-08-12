@@ -133,30 +133,55 @@ philokun/
 
 ---
 
-## 🚀 快速开始
+## 🚀 安装
 
-### 方式一：本地编译运行
+### 方式一：一键安装脚本（推荐，普通用户）
+
+自动识别操作系统/架构，从 GitHub Release 下载对应二进制并安装到 `~/.local/bin`：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/PhiloKun/philokun.git
-cd philokun
+# 安装最新版
+curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh
 
-# 编译出可执行文件（生成 ./philokun）
-go build -o philokun .
-
-# 体验
-./philokun version
-./philokun todo add 写一份 philokun 的 README
-./philokun todo list
+# 安装指定版本
+curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.0.0
 ```
 
-### 方式二：go install（需 Go 1.26+）
+安装完成后若提示 `~/.local/bin` 不在 PATH，执行：
 
 ```bash
-go install philokun@latest      # 二进制会装到 $GOPATH/bin，记得加入 PATH
+export PATH="$PATH:$HOME/.local/bin"
+# 或写入 shell 配置（Zsh 用户）:
+echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.zshrc && source ~/.zshrc
+```
+
+然后 `philokun version` 验证。
+
+### 方式二：下载 Release 二进制（手动）
+
+到 [GitHub Releases](https://github.com/PhiloKun/philokun/releases) 或
+[Gitee Releases](https://gitee.com/PhiloKun/philokun/releases) 下载对应平台的文件
+（如 `philokun-darwin-arm64`、`philokun-windows-amd64.exe`），解压后放入 PATH 即可。
+
+### 方式三：go install（需 Go 1.26+，适合开发者）
+
+```bash
+go install github.com/philokun@latest      # 二进制装到 $GOPATH/bin，记得加入 PATH
 philokun version
 ```
+
+### 开发者本地编译
+
+```bash
+git clone https://github.com/PhiloKun/philokun.git
+cd philokun
+go build -o philokun .
+./philokun version
+```
+
+---
+
+## 🚀 快速开始
 
 ---
 
@@ -243,6 +268,21 @@ go test ./... -v   # 查看每个用例的详细输出
 go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 ```
 
+**发版（生成多平台二进制）**
+
+仓库内置交叉编译脚本，一键产出 `dist/` 下各平台二进制与校验和：
+
+```bash
+./scripts/release.sh 1.0.0          # 指定版本
+# 或自动读取 cmd/version.go 的版本号
+./scripts/release.sh
+```
+
+把 `dist/philokun-*` 与 `dist/checksums-*.sha256` 上传到 GitHub / Gitee 的 Release
+（tag 形如 `v1.0.0`），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
+
+> `dist/` 已在 `.gitignore` 中忽略，二进制请走 Release 而非入库。
+
 ---
 
 ## 🔗 相关链接
@@ -258,4 +298,4 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 
 ---
 
-*最后更新：2026-08-11*
+*最后更新：2026-08-12*

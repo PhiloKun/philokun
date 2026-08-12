@@ -6,6 +6,9 @@
 philokun.exe
 *.exe
 
+# 发版二进制（走 GitHub/Gitee Release，不入库）
+/dist/
+
 # 编辑器 / IDE
 .idea/
 .vscode/
