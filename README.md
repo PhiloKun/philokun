@@ -17,7 +17,7 @@
 - **基于 Cobra**：命令结构清晰，新增子命令只需新增一个文件并在 `init()` 里注册。
 - **符合 Unix 习惯**：错误打到 stderr 并以非零退出码结束，方便在脚本里组合使用。
 
-> 当前为 `1.1.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成，以及公网 IP 查询、HTTP 请求、表达式计算、base64 编解码等功能。
+> 当前为 `1.2.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成，以及公网 IP 查询、HTTP 请求、表达式计算、base64 编解码、JSON 处理、时间/时间戳转换、UUID/随机生成、DNS 解析、静态文件服务、倒计时提醒、单位换算、文件加解密等功能。
 
 ---
 
@@ -61,6 +61,20 @@
 | `philokun http <方法> <URL>` | 发送 HTTP 请求，打印状态码/响应头/body 摘要 |
 | `philokun calc <表达式>` | 数学表达式计算（支持 + - * / ^ 与括号，含 sqrt/abs） |
 | `philokun base64 <encode\|decode> <文本>` | base64 编码 / 解码（支持从 stdin 读取） |
+| `philokun json fmt <文件>` | 格式化（美化）JSON，带缩进（省略文件则从 stdin 读） |
+| `philokun json min <文件>` | 压缩 JSON 成一行 |
+| `philokun json check <文件>` | 仅校验 JSON 语法是否合法 |
+| `philokun now` | 显示当前时间 + 时间戳（`-u` 用 UTC） |
+| `philokun now <时间戳\|日期>` | 时间戳 ↔ 日期互转 |
+| `philokun uuid [-n 数量]` | 生成 UUID v4（默认 1 个） |
+| `philokun rand [-l 长度] [-c 字符集]` | 生成随机字符串（密码学安全） |
+| `philokun rand -n <min> <max>` | 生成 [min,max] 范围内的随机整数 |
+| `philokun dns <域名> [-t 类型]` | DNS 解析（a/aaaa/cname/mx/ns/all，默认 A+AAAA） |
+| `philokun serve [目录] [-p 端口]` | 启动临时静态文件服务器（默认 8080） |
+| `philokun timer <时长> [文字]` | 倒计时提醒（支持 1h30m / 25m / 90s） |
+| `philokun unit <类别> <值> <从> <到>` | 单位换算（length/weight/temp） |
+| `philokun crypt enc <文件>` | 加密文件（AES-256-GCM，输出 `<文件>.crypt`） |
+| `philokun crypt dec <文件>` | 解密文件（AES-256-GCM） |
 
 ---
 
@@ -81,6 +95,14 @@
 - [HTTP 请求 `http`](./docs/http.md)
 - [表达式计算器 `calc`](./docs/calc.md)
 - [base64 编解码 `base64`](./docs/base64.md)
+- [JSON 工具 `json`](./docs/json.md)
+- [时间/时间戳 `now`](./docs/now.md)
+- [随机生成 `uuid` / `rand`](./docs/rand.md)
+- [DNS 解析 `dns`](./docs/dns.md)
+- [静态服务器 `serve`](./docs/serve.md)
+- [倒计时提醒 `timer`](./docs/timer.md)
+- [单位换算 `unit`](./docs/unit.md)
+- [文件加解密 `crypt`](./docs/crypt.md)
 
 ---
 
@@ -128,6 +150,15 @@ philokun/
 │   ├── http.go             # http 子命令（HTTP 请求快捷版）
 │   ├── calc.go             # calc 子命令（数学表达式求值）
 │   ├── base64.go           # base64 子命令（编解码）
+│   ├── json.go             # json 子命令（格式化/压缩/校验）
+│   ├── now.go              # now 子命令（时间/时间戳转换）
+│   ├── uuid.go             # uuid 子命令（生成 UUID v4）
+│   ├── rand.go             # rand 子命令（随机字符串/数字）
+│   ├── dns.go              # dns 子命令（DNS 解析）
+│   ├── serve.go            # serve 子命令（临时静态文件服务器）
+│   ├── timer.go            # timer 子命令（倒计时提醒）
+│   ├── unit.go             # unit 子命令（单位换算）
+│   ├── crypt.go            # crypt 子命令（文件加解密）
 │   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
 └── internal/
     └── store/
@@ -137,6 +168,7 @@ philokun/
         ├── url.go          # URL 书签持久化
         ├── short.go        # 短链持久化（base62 短码 / CRUD / 点击计数）
         ├── pass.go         # 加密保险箱（scrypt + AES-GCM）
+        ├── crypt.go        # 文件级加解密（scrypt + AES-GCM）
         └── qrcode.go       # 二维码 PNG 生成
 ```
 
@@ -156,10 +188,10 @@ philokun/
 curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh
 
 # 安装指定版本
-curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.1.0
+curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.2.0
 
 # 国内加速（走 Gitee，需显式指定版本）
-curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.1.0
+curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.2.0
 ```
 
 > 脚本默认从 GitHub 下载；若主源失败会自动回退到另一个源。国内网络不佳时
@@ -297,7 +329,7 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 ```
 
 把 `dist/philokun-*` 与 `dist/checksums-*.sha256` 上传到 GitHub / Gitee 的 Release
-（tag 形如 `v1.1.0`，与 `cmd/version.go` 中的版本号保持一致），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
+（tag 形如 `v1.2.0`，与 `cmd/version.go` 中的版本号保持一致），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
 
 > `dist/` 已在 `.gitignore` 中忽略，二进制请走 Release 而非入库。
 
@@ -335,4 +367,4 @@ export GITEE_TOKEN=你的gitee令牌        # 创建 Gitee Release 必需
 
 ---
 
-*最后更新：2026-08-12（新增 ip / http / calc / base64 四个命令）*
+*最后更新：2026-08-12（新增 json / now / uuid / rand / dns / serve / timer / unit / crypt 九个命令，版本 1.2.0）*
