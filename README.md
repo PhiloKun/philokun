@@ -57,6 +57,10 @@
 | `philokun shorten serve [-p 端口]` | 启动本地短链重定向服务 |
 | `philokun version` | 打印当前版本号 |
 | `philokun qrcode` | 启动本地网页版二维码生成器 |
+| `philokun ip` | 查询本机公网 IP（多源自动回退） |
+| `philokun http <方法> <URL>` | 发送 HTTP 请求，打印状态码/响应头/body 摘要 |
+| `philokun calc <表达式>` | 数学表达式计算（支持 + - * / ^ 与括号，含 sqrt/abs） |
+| `philokun base64 <encode\|decode> <文本>` | base64 编码 / 解码（支持从 stdin 读取） |
 
 ---
 
@@ -73,6 +77,10 @@
 - [短链服务 `shorten`](./docs/shorten.md)
 - [版本命令 `version`](./docs/version.md)
 - [二维码生成器 `qrcode`](./docs/qrcode.md)
+- [公网 IP 查询 `ip`](./docs/ip.md)
+- [HTTP 请求 `http`](./docs/http.md)
+- [表达式计算器 `calc`](./docs/calc.md)
+- [base64 编解码 `base64`](./docs/base64.md)
 
 ---
 
@@ -116,6 +124,10 @@ philokun/
 │   ├── shorten.go          # shorten 分组命令 + create / get / list / rm / serve
 │   ├── version.go          # version 子命令
 │   ├── qrcode.go           # qrcode 子命令（本地 Web 服务 + 二维码 API）
+│   ├── ip.go               # ip 子命令（公网 IP 查询，多源回退）
+│   ├── http.go             # http 子命令（HTTP 请求快捷版）
+│   ├── calc.go             # calc 子命令（数学表达式求值）
+│   ├── base64.go           # base64 子命令（编解码）
 │   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
 └── internal/
     └── store/
@@ -304,4 +316,4 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 
 ---
 
-*最后更新：2026-08-12*
+*最后更新：2026-08-12（新增 ip / http / calc / base64 四个命令）*
