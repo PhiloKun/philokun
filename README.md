@@ -301,6 +301,25 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 
 > `dist/` 已在 `.gitignore` 中忽略，二进制请走 Release 而非入库。
 
+**一键发版（推荐）**
+
+仓库内置 `scripts/publish.sh`，把“升版本 → 交叉编译 → 提交并同步文档 → 推 gitee/github 两远端 → 发 GitHub 与 Gitee Release”整条链路自动化：
+
+```bash
+export GITEE_TOKEN=你的gitee令牌        # 创建 Gitee Release 必需
+./scripts/publish.sh 1.1.1               # 发布指定版本（自动改 version.go + 同步文档）
+# 或自动读取 cmd/version.go 的版本号
+./scripts/publish.sh
+```
+
+常用开关：
+
+- `SKIP_BUILD=1 ./scripts/publish.sh 1.1.1` —— 跳过编译，仅发布已存在的 `dist/`
+- `NO_PUSH=1 ./scripts/publish.sh 1.1.1` —— 只本地构建 + git commit，不推送、不发 Release
+
+> ⚠️ **安全提示**：`GITEE_TOKEN` 属于敏感凭证，请勿写入脚本或提交到仓库。建议仅在终端
+> 会话中临时 `export`，用毕及时 `unset GITEE_TOKEN`；若怀疑泄露，请到 Gitee 后台立即吊销轮换。
+
 ---
 
 ## 🔗 相关链接
