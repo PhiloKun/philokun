@@ -132,7 +132,7 @@ func shortenRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 func init() {
 	shortenCreateCmd.Flags().StringVarP(&shortenCustom, "code", "c", "", "自定义短码（默认自动生成）")
-	shortenServeCmd.Flags().StringVarP(&shortenPort, "port", "p", "8080", "重定向服务监听端口")
+	shortenServeCmd.Flags().StringVarP(&shortenPort, "port", "p", "9010", "重定向服务监听端口")
 	shortenServeCmd.Flags().StringVar(&shortenHost, "host", "127.0.0.1", "重定向服务监听地址")
 
 	shortenCmd.AddCommand(shortenCreateCmd)
