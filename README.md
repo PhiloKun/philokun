@@ -17,7 +17,7 @@
 - **基于 Cobra**：命令结构清晰，新增子命令只需新增一个文件并在 `init()` 里注册。
 - **符合 Unix 习惯**：错误打到 stderr 并以非零退出码结束，方便在脚本里组合使用。
 
-> 当前为 `1.0.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成等功能。
+> 当前为 `1.1.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成，以及公网 IP 查询、HTTP 请求、表达式计算、base64 编解码等功能。
 
 ---
 
@@ -156,10 +156,10 @@ philokun/
 curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh
 
 # 安装指定版本
-curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.0.0
+curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.1.0
 
 # 国内加速（走 Gitee，需显式指定版本）
-curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.0.0
+curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.1.0
 ```
 
 > 脚本默认从 GitHub 下载；若主源失败会自动回退到另一个源。国内网络不佳时
@@ -291,13 +291,13 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 仓库内置交叉编译脚本，一键产出 `dist/` 下各平台二进制与校验和：
 
 ```bash
-./scripts/release.sh 1.0.0          # 指定版本
+./scripts/release.sh 1.1.0          # 指定版本
 # 或自动读取 cmd/version.go 的版本号
 ./scripts/release.sh
 ```
 
 把 `dist/philokun-*` 与 `dist/checksums-*.sha256` 上传到 GitHub / Gitee 的 Release
-（tag 形如 `v1.0.0`），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
+（tag 形如 `v1.1.0`，与 `cmd/version.go` 中的版本号保持一致），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
 
 > `dist/` 已在 `.gitignore` 中忽略，二进制请走 Release 而非入库。
 
