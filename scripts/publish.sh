@@ -67,7 +67,7 @@ if [ "${NO_PUSH:-0}" != "1" ]; then
     git commit -m "release: v${VERSION}"
   fi
   git push gitee main
-  git push github main
+  git push origin main
   info "已推送到 gitee / github"
 else
   warn "NO_PUSH=1，跳过 git 提交与推送"
