@@ -137,15 +137,21 @@ philokun/
 
 ### 方式一：一键安装脚本（推荐，普通用户）
 
-自动识别操作系统/架构，从 GitHub Release 下载对应二进制并安装到 `~/.local/bin`：
+自动识别操作系统/架构，从 Release 下载对应二进制并安装到 `~/.local/bin`：
 
 ```bash
-# 安装最新版
+# 安装最新版（默认走 GitHub）
 curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh
 
 # 安装指定版本
 curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.0.0
+
+# 国内加速（走 Gitee，需显式指定版本）
+curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.0.0
 ```
+
+> 脚本默认从 GitHub 下载；若主源失败会自动回退到另一个源。国内网络不佳时
+> 直接用上面的 `RELEASE_MIRROR=gitee` 一行即可稳定安装。
 
 安装完成后若提示 `~/.local/bin` 不在 PATH，执行：
 

@@ -4,8 +4,11 @@
 #   curl -sSfL https://raw.githubusercontent.com/philokun/philokun/main/install.sh | sh
 #   # 或指定版本:
 #   curl -sSfL https://raw.githubusercontent.com/philokun/philokun/main/install.sh | sh -s -- v1.0.0
+#   # 国内加速（走 Gitee，需显式指定版本）:
+#   curl -sSfL https://gitee.com/philokun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.0.0
 #
-# 脚本会自动识别操作系统/架构，从 GitHub Release 下载对应二进制，
+# 下载源由 RELEASE_MIRROR 控制: github(默认) / gitee(国内加速)。
+# 脚本会自动识别操作系统/架构，从对应 Release 下载对应二进制，
 # 安装到 ~/.local/bin（或 $INSTALL_DIR 指定的目录），并提示加入 PATH。
 
 set -euo pipefail
@@ -44,34 +47,85 @@ ARCH="$(detect_arch)"
 EXT=""
 if [ "$OS" = "windows" ]; then EXT=".exe"; fi
 
-# 解析版本对应的下载 URL
-if [ "$VERSION" = "latest" ]; then
-  TAG="latest"
-  BASE="https://github.com/${REPO}/releases/latest/download"
-else
-  TAG="$VERSION"
-  BASE="https://github.com/${REPO}/releases/download/${VERSION}"
-fi
+# 下载源：默认 github，国内用户可用 RELEASE_MIRROR=gitee 走 Gitee（国内加速）
+RELEASE_MIRROR="${RELEASE_MIRROR:-github}"
+case "$RELEASE_MIRROR" in
+  github)
+    GH_BASE="https://github.com/${REPO}/releases"
+    if [ "$VERSION" = "latest" ]; then
+      BASE="${GH_BASE}/latest/download"
+    else
+      BASE="${GH_BASE}/download/${VERSION}"
+    fi
+    ;;
+  gitee)
+    # Gitee Release 附件直链（国内访问稳定）
+    GITEE_BASE="https://gitee.com/${REPO}/releases/download"
+    if [ "$VERSION" = "latest" ]; then
+      # Gitee 没有 latest 概念，latest 时回退到最新 tag 需用户显式指定，这里直接用 v 前缀提示
+      error "Gitee 源不支持 latest，请显式指定版本，例如: RELEASE_MIRROR=gitee sh -s -- v1.0.0"
+    else
+      BASE="${GITEE_BASE}/${VERSION}"
+    fi
+    ;;
+  *)
+    error "未知的 RELEASE_MIRROR: ${RELEASE_MIRROR}（仅支持 github / gitee）"
+    ;;
+esac
 
 ASSET="${BINARY}-${OS}-${ARCH}${EXT}"
 URL="${BASE}/${ASSET}"
 
+info "下载源: ${RELEASE_MIRROR}"
 info "检测到平台: ${OS}/${ARCH}"
 info "下载地址: ${URL}"
 
 # 创建安装目录
 mkdir -p "$INSTALL_DIR"
 
-# 下载
+# 下载（带镜像回退：优先 RELEASE_MIRROR，失败时尝试另一个源）
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 
-if command -v curl >/dev/null 2>&1; then
-  curl -sSLf "$URL" -o "$TMP" || error "下载失败，请确认版本 ${VERSION} 已发布且包含资产 ${ASSET}"
-elif command -v wget >/dev/null 2>&1; then
-  wget -qO "$TMP" "$URL" || error "下载失败，请确认版本 ${VERSION} 已发布且包含资产 ${ASSET}"
-else
-  error "需要 curl 或 wget 才能下载"
+# 构造备用源 URL：github 失败则试 gitee，反之亦然
+alt_url() {
+  case "$RELEASE_MIRROR" in
+    github)
+      if [ "$VERSION" = "latest" ]; then
+        echo "https://gitee.com/${REPO}/releases/download/${CURRENT_TAG:-v1.0.0}/${ASSET}"
+      else
+        echo "https://gitee.com/${REPO}/releases/download/${VERSION}/${ASSET}"
+      fi
+      ;;
+    gitee)
+      if [ "$VERSION" = "latest" ]; then
+        echo "https://github.com/${REPO}/releases/latest/download/${ASSET}"
+      else
+        echo "https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
+      fi
+      ;;
+  esac
+}
+
+download() {
+  local u="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sSLf "$u" -o "$TMP"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TMP" "$u"
+  else
+    return 2
+  fi
+}
+
+if ! download "$URL"; then
+  FALLBACK="$(alt_url)"
+  warn "主源下载失败，尝试备用源: ${FALLBACK}"
+  if ! download "$FALLBACK"; then
+    error "下载失败，请确认版本 ${VERSION} 已发布且包含资产 ${ASSET}"
+  fi
+  URL="$FALLBACK"
+  info "已通过备用源下载"
 fi
 
 DEST="${INSTALL_DIR}/${BINARY}${EXT}"
