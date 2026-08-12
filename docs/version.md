@@ -9,7 +9,7 @@ philokun version
 输出：
 
 ```
-philokun version 0.1.0
+philokun version 1.0.0
 ```
 
 ## 版本号说明
