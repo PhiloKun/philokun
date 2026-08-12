@@ -68,7 +68,15 @@ if [ "${NO_PUSH:-0}" != "1" ]; then
   fi
   git push gitee main
   git push origin main
-  info "已推送到 gitee / github"
+  # 打 tag 并推送到两个远端（GitHub 的 gh 会自动建 tag，但 gitee 需要显式推送）
+  if git rev-parse "$TAG" >/dev/null 2>&1; then
+    warn "tag ${TAG} 已存在，跳过打 tag"
+  else
+    git tag "$TAG"
+  fi
+  git push gitee "refs/tags/$TAG"
+  git push origin "refs/tags/$TAG"
+  info "已推送到 gitee / github（含 tag ${TAG}）"
 else
   warn "NO_PUSH=1，跳过 git 提交与推送"
 fi
@@ -99,15 +107,15 @@ if [ "${NO_PUSH:-0}" != "1" ]; then
   GITEE_API="https://gitee.com/api/v5/repos/PhiloKun/philokun/releases"
   GITEE_REPO="PhiloKun/philokun"
 
-  # 1) 创建或获取 Release
-  REL_ID="$(curl -sSfL -X POST "${GITEE_API}" \
-    -H "Content-Type: application/json" \
-    -d "{\"access_token\":\"${GITEE_TOKEN}\",\"tag_name\":\"${TAG}\",\"name\":\"philokun ${TAG}\",\"body\":\"Release ${TAG}\",\"prerelease\":false}" \
-    | grep -oE '"id":[0-9]+' | head -1 | sed -E 's/"id":([0-9]+)/\1/')" || REL_ID=""
+  # 1) 按 tag 查询是否已有 Release（避免误匹配其他版本）
+  REL_ID="$(curl -sSfL "${GITEE_API}?access_token=${GITEE_TOKEN}&tag_name=${TAG}" \
+    | grep -oE '"id":[0-9]+' | head -1 | sed -E 's/"id":([0-9]+)/\1/')"
 
   if [ -z "$REL_ID" ]; then
-    # 已存在则按 tag 查询
-    REL_ID="$(curl -sSfL "${GITEE_API}?access_token=${GITEE_TOKEN}&tag_name=${TAG}" \
+    # 不存在则创建（必须带 target_commitish，否则 Gitee 返回 400）
+    REL_ID="$(curl -sS -X POST "${GITEE_API}" \
+      -H "Content-Type: application/json" \
+      -d "{\"access_token\":\"${GITEE_TOKEN}\",\"tag_name\":\"${TAG}\",\"name\":\"philokun ${TAG}\",\"body\":\"Release ${TAG}\",\"target_commitish\":\"main\",\"prerelease\":false}" \
       | grep -oE '"id":[0-9]+' | head -1 | sed -E 's/"id":([0-9]+)/\1/')"
   fi
   [ -z "$REL_ID" ] && error "无法创建/获取 Gitee Release（REL_ID 为空）"
