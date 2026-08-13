@@ -17,7 +17,7 @@
 - **基于 Cobra**：命令结构清晰，新增子命令只需新增一个文件并在 `init()` 里注册。
 - **符合 Unix 习惯**：错误打到 stderr 并以非零退出码结束，方便在脚本里组合使用。
 
-> 当前为 `1.2.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成，以及公网 IP 查询、HTTP 请求、表达式计算、base64 编解码、JSON 处理、时间/时间戳转换、UUID/随机生成、DNS 解析、静态文件服务、倒计时提醒、单位换算、文件加解密等功能。
+> 当前为 `1.3.0` 版本，已实现待办管理、终端速记、密码保险箱、天气查询、番茄钟、URL 书签、短链服务、二维码生成，以及公网 IP 查询、HTTP 请求、表达式计算、base64 编解码、JSON 处理、时间/时间戳转换、UUID/随机生成、DNS 解析、静态文件服务、倒计时提醒、单位换算、文件加解密，并新增哈希计算、年龄/日期差、BMI、周期监控、端口检测、目录树、slug 生成、文本差异、批量重命名、zip 压缩解压等工具。
 
 ---
 
@@ -75,6 +75,17 @@
 | `philokun unit <类别> <值> <从> <到>` | 单位换算（length/weight/temp） |
 | `philokun crypt enc <文件>` | 加密文件（AES-256-GCM，输出 `<文件>.crypt`） |
 | `philokun crypt dec <文件>` | 解密文件（AES-256-GCM） |
+| `philokun hash [-a 算法] [-f] <文本/文件>` | 计算哈希（md5/sha1/sha256/sha512） |
+| `philokun age <出生日期> [结束日期]` | 计算年龄 / 两个日期之间的差 |
+| `philokun bmi <身高cm> <体重kg> [-u]` | 计算 BMI 并给出分类与理想体重区间 |
+| `philokun watch [-n 秒] [-c 次数] <命令/URL>` | 周期性重复执行命令 / 请求 URL |
+| `philokun port <端口...> [-H 地址]` | 检测本地端口是否被占用（支持区间） |
+| `philokun tree [目录] [-L 深度] [-a] [-d]` | 以树状结构展示目录 |
+| `philokun slug <文本> [-s 分隔符]` | 生成 URL 友好的 slug |
+| `philokun diff <文件A> <文件B> [-u]` | 行级文本差异（LCS） |
+| `philokun rename --dir <目录> [--prefix/--suffix/--replace/--index]` | 批量重命名文件 |
+| `philokun zip c <输出.zip> <文件/目录...>` | 创建 zip 归档 |
+| `philokun zip x <归档.zip> [-d 目录]` | 从 zip 解压到目录 |
 
 ---
 
@@ -103,6 +114,16 @@
 - [倒计时提醒 `timer`](./docs/timer.md)
 - [单位换算 `unit`](./docs/unit.md)
 - [文件加解密 `crypt`](./docs/crypt.md)
+- [哈希计算 `hash`](./docs/hash.md)
+- [年龄 / 日期差 `age`](./docs/age.md)
+- [BMI 计算 `bmi`](./docs/bmi.md)
+- [周期监控 `watch`](./docs/watch.md)
+- [端口检测 `port`](./docs/port.md)
+- [目录树 `tree`](./docs/tree.md)
+- [slug 生成 `slug`](./docs/slug.md)
+- [文本差异 `diff`](./docs/diff.md)
+- [批量重命名 `rename`](./docs/rename.md)
+- [zip 压缩解压 `zip`](./docs/zip.md)
 
 ---
 
@@ -159,6 +180,16 @@ philokun/
 │   ├── timer.go            # timer 子命令（倒计时提醒）
 │   ├── unit.go             # unit 子命令（单位换算）
 │   ├── crypt.go            # crypt 子命令（文件加解密）
+│   ├── hash.go             # hash 子命令（md5/sha1/sha256/sha512）
+│   ├── age.go              # age 子命令（年龄/日期差）
+│   ├── bmi.go              # bmi 子命令（BMI 计算）
+│   ├── watch.go            # watch 子命令（周期监控）
+│   ├── port.go             # port 子命令（端口检测）
+│   ├── tree.go             # tree 子命令（目录树）
+│   ├── slug.go             # slug 子命令（URL 友好 slug）
+│   ├── diff.go             # diff 子命令（行级差异）
+│   ├── rename.go           # rename 子命令（批量重命名）
+│   ├── zip.go              # zip 子命令（压缩/解压）
 │   └── qrcode-web/         # 嵌入的二维码网页（输入框/实时生成/下载/复制）
 └── internal/
     └── store/
@@ -188,10 +219,10 @@ philokun/
 curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh
 
 # 安装指定版本
-curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.2.0
+curl -sSfL https://raw.githubusercontent.com/PhiloKun/philokun/main/install.sh | sh -s -- v1.3.0
 
 # 国内加速（走 Gitee，需显式指定版本）
-curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.2.0
+curl -sSfL https://gitee.com/PhiloKun/philokun/raw/main/install.sh | RELEASE_MIRROR=gitee sh -s -- v1.3.0
 ```
 
 > 脚本默认从 GitHub 下载；若主源失败会自动回退到另一个源。国内网络不佳时
@@ -329,7 +360,7 @@ go build -ldflags "-X github.com/philokun/cmd.version=1.2.3" -o philokun .
 ```
 
 把 `dist/philokun-*` 与 `dist/checksums-*.sha256` 上传到 GitHub / Gitee 的 Release
-（tag 形如 `v1.2.0`，与 `cmd/version.go` 中的版本号保持一致），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
+（tag 形如 `v1.3.0`，与 `cmd/version.go` 中的版本号保持一致），普通用户即可用上面的「一键安装脚本」或「下载二进制」方式安装。
 
 > `dist/` 已在 `.gitignore` 中忽略，二进制请走 Release 而非入库。
 
@@ -367,4 +398,4 @@ export GITEE_TOKEN=你的gitee令牌        # 创建 Gitee Release 必需
 
 ---
 
-*最后更新：2026-08-12（新增 json / now / uuid / rand / dns / serve / timer / unit / crypt 九个命令，版本 1.2.0）*
+*最后更新：2026-08-13（新增 hash / age / bmi / watch / port / tree / slug / diff / rename / zip 十个命令，版本 1.3.0）*
