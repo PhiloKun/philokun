@@ -107,27 +107,46 @@ if [ "${NO_PUSH:-0}" != "1" ]; then
   GITEE_API="https://gitee.com/api/v5/repos/PhiloKun/philokun/releases"
   GITEE_REPO="PhiloKun/philokun"
 
-  # 1) 按 tag 查询是否已有 Release（避免误匹配其他版本）
-  REL_ID="$(curl -sSfL "${GITEE_API}?access_token=${GITEE_TOKEN}&tag_name=${TAG}" \
-    | grep -oE '"id":[0-9]+' | head -1 | sed -E 's/"id":([0-9]+)/\1/')"
+  # 1) 按 tag 精确查询是否已有 Release（必须匹配 tag_name，避免误命中其他版本）
+  REL_ID="$(curl -sS "${GITEE_API}?access_token=${GITEE_TOKEN}" \
+    | python3 -c "import sys,json
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    d=[]
+if isinstance(d,list):
+    for r in d:
+        if r.get('tag_name')=='${TAG}':
+            print(r.get('id')); break" 2>/dev/null)"
 
   if [ -z "$REL_ID" ]; then
     # 不存在则创建（必须带 target_commitish，否则 Gitee 返回 400）
     REL_ID="$(curl -sS -X POST "${GITEE_API}" \
       -H "Content-Type: application/json" \
       -d "{\"access_token\":\"${GITEE_TOKEN}\",\"tag_name\":\"${TAG}\",\"name\":\"philokun ${TAG}\",\"body\":\"Release ${TAG}\",\"target_commitish\":\"main\",\"prerelease\":false}" \
-      | grep -oE '"id":[0-9]+' | head -1 | sed -E 's/"id":([0-9]+)/\1/')"
+      | python3 -c "import sys,json
+try:
+    r=json.load(sys.stdin); print(r.get('id') or '')
+except Exception: print('')" 2>/dev/null)"
   fi
   [ -z "$REL_ID" ] && error "无法创建/获取 Gitee Release（REL_ID 为空）"
-  info "Gitee Release id=${REL_ID}"
+  info "Gitee Release id=${REL_ID} (tag=${TAG})"
 
   # 2) 上传附件（先查已存在，避免重复）
   for f in dist/philokun-* dist/checksums-*.sha256; do
     [ -e "$f" ] || continue
     NAME="$(basename "$f")"
-    EXIST="$(curl -sSfL "${GITEE_API}/${REL_ID}/attach_files?access_token=${GITEE_TOKEN}" \
-      | grep -oE "\"name\":\"${NAME}\"" || true)"
-    if [ -n "$EXIST" ]; then
+    EXIST="$(curl -sS "${GITEE_API}/${REL_ID}/attach_files?access_token=${GITEE_TOKEN}" \
+      | python3 -c "import sys,json
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    d=[]
+if isinstance(d,list):
+    for a in d:
+        if a.get('name')=='${NAME}':
+            print('exists'); break" 2>/dev/null)"
+    if [ "$EXIST" = "exists" ]; then
       warn "Gitee 附件已存在，跳过: ${NAME}"
       continue
     fi
